@@ -164,7 +164,6 @@
   <div id="seance-bottom-btn" style="margin-top:8px"></div>
 
 </div>
-      </div>
 
     </section>
 <!-- VUE LANCER SÉANCE -->
@@ -211,12 +210,14 @@
   <div id="workout-rest-screen" style="display:none">
     <div class="rest-screen">
       <p class="rest-label">Repos</p>
-      <div class="rest-countdown" id="rest-countdown">180</div>
-      <div class="rest-progress-ring">
-        <svg viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="54" class="ring-bg"/>
-          <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill"/>
-        </svg>
+      <div class="rest-countdown-wrapper">
+        <div class="rest-progress-ring">
+          <svg viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="54" class="ring-bg"/>
+            <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill"/>
+          </svg>
+        </div>
+        <div class="rest-countdown" id="rest-countdown">180</div>
       </div>
       <div class="rest-next-info">
         <p class="rest-next-label">Prochain exercice</p>
@@ -231,14 +232,16 @@
   <div id="workout-rest-series-screen" style="display:none">
     <div class="rest-screen">
       <p class="rest-label">Repos entre séries</p>
-      <div class="rest-countdown" id="rest-series-countdown">120</div>
-      <div class="rest-progress-ring">
-        <svg viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="54" class="ring-bg"/>
-          <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill-series"/>
-        </svg>
+      <div class="rest-countdown-wrapper">
+        <div class="rest-progress-ring">
+          <svg viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="54" class="ring-bg"/>
+            <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill-series"/>
+          </svg>
+        </div>
+        <div class="rest-countdown" id="rest-series-countdown">120</div>
       </div>
-      <p class="rest-next-label" style="margin-top:24px">Reprends quand tu es prêt</p>
+      <p class="rest-next-label" style="margin-top:8px">Reprends quand tu es prêt</p>
       <button class="btn-skip-rest" onclick="skipRestSeries()">Reprendre →</button>
     </div>
   </div>

@@ -23,6 +23,12 @@ function navigate(view) {
 function goBack() {
   if (previousView === 'seance-detail') {
     showSeancesList();
+  } else if (previousView === 'workout') {
+    if (confirm('Abandonner la séance en cours ?')) {
+      clearCountdown();
+      document.getElementById('bottom-nav').style.display = 'flex';
+      navigate('seances');
+    }
   }
 }
 
@@ -244,14 +250,202 @@ function renderSeanceDetail(seanceId, editMode = false) {
     ? `<button class="btn-primary" onclick="showAddExerciceForm()">+ Ajouter un exercice</button>`
     : `<button class="btn-launch" onclick="lancerSeance('${seanceId}')">🏋️ Lancer la séance</button>`;
 }
+// ===== WORKOUT STATE =====
+let workoutSeanceId = null;
+let workoutExos = [];
+let workoutExoIndex = 0;
+let workoutSeriesCompleted = 0;
+let workoutStartTime = null;
+let countdownInterval = null;
+let countdownRemaining = 0;
+let countdownTotal = 0;
+
+const RING_C = 2 * Math.PI * 54; // circonférence SVG r=54
+
 function lancerSeance(seanceId) {
-  // On enregistre la séance dans le log
+  const programme = getProgramme();
+  const seance = programme.find(s => s.id === seanceId);
+  if (!seance || seance.exercices.length === 0) {
+    alert('Aucun exercice dans cette séance.');
+    return;
+  }
+
+  workoutSeanceId = seanceId;
+  workoutExos = seance.exercices;
+  workoutExoIndex = 0;
+  workoutSeriesCompleted = 0;
+  workoutStartTime = Date.now();
+
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-workout').classList.add('active');
+  document.getElementById('page-title').textContent = seance.nom;
+  document.getElementById('back-btn').style.display = 'block';
+  document.getElementById('bottom-nav').style.display = 'none';
+  previousView = 'workout';
+
+  renderWorkoutExercice();
+}
+
+function renderWorkoutExercice() {
+  const exo = workoutExos[workoutExoIndex];
+
+  document.getElementById('workout-exercice-screen').style.display = 'flex';
+  document.getElementById('workout-rest-screen').style.display = 'none';
+  document.getElementById('workout-rest-series-screen').style.display = 'none';
+  document.getElementById('workout-done-screen').style.display = 'none';
+
+  document.getElementById('workout-seance-nom').textContent =
+    document.getElementById('page-title').textContent;
+  document.getElementById('workout-progress').textContent =
+    `${workoutExoIndex + 1} / ${workoutExos.length}`;
+
+  document.getElementById('workout-exo-numero').textContent =
+    `Exercice ${workoutExoIndex + 1}`;
+  document.getElementById('workout-exo-nom').textContent = exo.nom;
+  document.getElementById('workout-series').textContent = exo.series;
+  document.getElementById('workout-reps').textContent = exo.reps;
+  document.getElementById('workout-charge').textContent =
+    exo.charge > 0 ? exo.charge + ' kg' : 'PDC';
+
+  // Dots séries
+  const dotsEl = document.getElementById('workout-series-dots');
+  dotsEl.innerHTML = '';
+  for (let i = 0; i < exo.series; i++) {
+    const d = document.createElement('div');
+    d.className = 'series-dot' + (i < workoutSeriesCompleted ? ' done' : '');
+    dotsEl.appendChild(d);
+  }
+
+  // Bouton repos visible seulement si des séries restent
+  const btnRest = document.getElementById('btn-rest');
+  btnRest.style.display = workoutSeriesCompleted < exo.series ? 'flex' : 'none';
+
+  // Libellé bouton suivant
+  const btnNext = document.querySelector('.btn-next-exo');
+  btnNext.textContent = workoutExoIndex === workoutExos.length - 1
+    ? 'Terminer la séance ✓'
+    : 'Exercice suivant →';
+}
+
+function startRestSeries() {
+  workoutSeriesCompleted++;
+  renderWorkoutExercice(); // met à jour les dots et cache btn-rest si besoin
+
+  const exo = workoutExos[workoutExoIndex];
+  document.getElementById('workout-exercice-screen').style.display = 'none';
+  document.getElementById('workout-rest-series-screen').style.display = 'flex';
+
+  startCountdown(exo.reposSeries, 'rest-series-countdown', 'ring-fill-series', () => {
+    document.getElementById('workout-rest-series-screen').style.display = 'none';
+    renderWorkoutExercice();
+  });
+}
+
+function skipRestSeries() {
+  clearCountdown();
+  document.getElementById('workout-rest-series-screen').style.display = 'none';
+  renderWorkoutExercice();
+}
+
+function nextExercice() {
+  clearCountdown();
+  workoutSeriesCompleted = workoutExos[workoutExoIndex].series;
+
+  if (workoutExoIndex >= workoutExos.length - 1) {
+    showWorkoutDone();
+    return;
+  }
+
+  const exo = workoutExos[workoutExoIndex];
+  const nextExo = workoutExos[workoutExoIndex + 1];
+
+  document.getElementById('workout-exercice-screen').style.display = 'none';
+  document.getElementById('workout-rest-screen').style.display = 'flex';
+
+  document.getElementById('rest-next-nom').textContent = nextExo.nom;
+  document.getElementById('rest-next-stats').innerHTML =
+    `<span>${nextExo.series} séries</span><span>·</span>` +
+    `<span>${nextExo.reps} reps</span><span>·</span>` +
+    `<span>${nextExo.charge > 0 ? nextExo.charge + ' kg' : 'PDC'}</span>`;
+
+  startCountdown(exo.reposExo, 'rest-countdown', 'ring-fill', () => {
+    advanceToNextExo();
+  });
+}
+
+function skipRest() {
+  clearCountdown();
+  advanceToNextExo();
+}
+
+function advanceToNextExo() {
+  workoutExoIndex++;
+  workoutSeriesCompleted = 0;
+  document.getElementById('workout-rest-screen').style.display = 'none';
+  renderWorkoutExercice();
+}
+
+function showWorkoutDone() {
+  document.getElementById('workout-exercice-screen').style.display = 'none';
+  document.getElementById('workout-rest-screen').style.display = 'none';
+  document.getElementById('workout-rest-series-screen').style.display = 'none';
+  document.getElementById('workout-done-screen').style.display = 'flex';
+
+  const elapsed = Math.round((Date.now() - workoutStartTime) / 60000);
+  const seance = getProgramme().find(s => s.id === workoutSeanceId);
+  const totalSeries = seance.exercices.reduce((a, e) => a + e.series, 0);
+  document.getElementById('done-recap').textContent =
+    `${seance.exercices.length} exercices · ${totalSeries} séries · ${elapsed} min`;
+
   const log = getSeancesLog();
-  log.push({ seanceId, date: today() });
+  log.push({ seanceId: workoutSeanceId, date: today() });
   saveSeancesLog(log);
-  alert('Séance enregistrée ! 💪');
   updateDashboard();
-  renderCalendar();
+}
+
+function finishWorkout() {
+  clearCountdown();
+  document.getElementById('bottom-nav').style.display = 'flex';
+  navigate('seances');
+}
+
+// ===== COUNTDOWN =====
+function startCountdown(seconds, countdownId, ringId, onFinish) {
+  clearCountdown();
+  countdownRemaining = seconds;
+  countdownTotal = seconds;
+
+  const countdownEl = document.getElementById(countdownId);
+  const ringEl = document.getElementById(ringId);
+
+  if (ringEl) {
+    ringEl.setAttribute('stroke-dasharray', RING_C);
+    ringEl.setAttribute('stroke-dashoffset', 0);
+  }
+
+  function tick() {
+    if (countdownEl) countdownEl.textContent = countdownRemaining;
+    if (ringEl) {
+      ringEl.setAttribute('stroke-dashoffset',
+        RING_C * (1 - countdownRemaining / countdownTotal));
+    }
+    if (countdownRemaining <= 0) {
+      clearCountdown();
+      if (onFinish) onFinish();
+      return;
+    }
+    countdownRemaining--;
+  }
+
+  tick();
+  countdownInterval = setInterval(tick, 1000);
+}
+
+function clearCountdown() {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
 }
 // ===== ACTIONS EXERCICES =====
 function toggleEditExo(exoId) {
