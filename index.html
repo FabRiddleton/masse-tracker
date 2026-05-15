@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MassTracker" />
+  <title>MassTracker</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <button id="back-btn" onclick="goBack()" style="display:none">← Retour</button>
+    <h1 id="page-title">Dashboard</h1>
+  </header>
+
+  <main id="main-content">
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view active">
+      <div class="cards-grid">
+        <div class="card" onclick="navigate('poids')">
+          <span class="card-icon">⚖️</span>
+          <h2>Poids & Mensurations</h2>
+          <p class="card-value" id="dash-poids">-- kg</p>
+        </div>
+        <div class="card" onclick="navigate('macros')">
+          <span class="card-icon">🥗</span>
+          <h2>Macros & Nutrition</h2>
+          <p class="card-value" id="dash-macros">-- kcal</p>
+        </div>
+        <div class="card" onclick="navigate('seances')">
+          <span class="card-icon">🏋️</span>
+          <h2>Séances</h2>
+          <p class="card-value" id="dash-seances">-- séances</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- POIDS -->
+    <section id="view-poids" class="view">
+      <div id="poids-setup" class="setup-card" style="display:none">
+        <h2>Configuration initiale</h2>
+        <p class="setup-subtitle">Renseigne tes données de départ pour commencer le suivi</p>
+        <div class="form-group"><label>Taille (cm)</label><input type="number" id="setup-taille" placeholder="ex: 180" /></div>
+        <div class="form-group"><label>Poids de départ (kg)</label><input type="number" id="setup-poids-depart" step="0.1" placeholder="ex: 75.0" /></div>
+        <div class="form-group"><label>Date de départ</label><input type="date" id="setup-date-depart" /></div>
+        <div class="form-group"><label>Poids cible (kg)</label><input type="number" id="setup-poids-cible" step="0.1" placeholder="ex: 82.0" /></div>
+        <div class="form-group"><label>Date butoir</label><input type="date" id="setup-date-cible" /></div>
+        <button class="btn-primary" onclick="saveSetup()">Démarrer le suivi</button>
+      </div>
+      <div id="poids-content" style="display:none">
+        <div class="triple-block">
+          <div class="triple-item">
+            <span class="triple-label">Départ</span>
+            <span class="triple-value" id="info-poids-depart">--</span>
+            <span class="triple-sub" id="info-imc-depart">IMC --</span>
+            <span class="triple-date" id="info-date-depart">--</span>
+          </div>
+          <div class="triple-item triple-center">
+            <span class="triple-label">Actuel</span>
+            <span class="triple-value accent" id="info-poids-actuel">--</span>
+            <span class="triple-sub" id="info-imc-actuel">IMC --</span>
+          </div>
+          <div class="triple-item">
+            <span class="triple-label">Objectif</span>
+            <span class="triple-value" id="info-poids-cible">--</span>
+            <span class="triple-sub" id="info-imc-cible">IMC --</span>
+            <span class="triple-date" id="info-date-cible">--</span>
+          </div>
+        </div>
+        <div class="progress-block">
+          <div class="progress-row"><span class="progress-label">Progression poids</span><span class="progress-pct" id="pct-poids">0%</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-poids" style="width:0%"></div></div>
+          <div class="progress-row"><span class="progress-label">Progression durée</span><span class="progress-pct" id="pct-duree">0%</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-duree" style="width:0%"></div></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><span class="stat-label">Graisses corporelles</span><span class="stat-value" id="stat-graisse">--%</span></div>
+          <div class="stat-card"><span class="stat-label">Pris depuis le début</span><span class="stat-value" id="stat-pris">-- kg</span></div>
+          <div class="stat-card"><span class="stat-label">Restant</span><span class="stat-value" id="stat-restant">-- kg</span></div>
+          <div class="stat-card"><span class="stat-label">IMC</span><span class="stat-value" id="stat-imc">--</span><span class="stat-badge" id="stat-imc-label">--</span></div>
+          <div class="stat-card"><span class="stat-label">Gain / jour</span><span class="stat-value" id="stat-gain-jour">-- g</span></div>
+          <div class="stat-card"><span class="stat-label">Gain / semaine</span><span class="stat-value" id="stat-gain-sem">-- g</span></div>
+          <div class="stat-card full-width"><span class="stat-label">Calories recommandées / jour</span><span class="stat-value" id="stat-calories">-- kcal</span></div>
+        </div>
+        <div class="add-block">
+          <h3>Ajouter un poids</h3>
+          <div class="add-row">
+            <input type="number" id="new-poids" step="0.1" placeholder="ex: 76.5" />
+            <input type="date" id="new-date" />
+            <button class="btn-primary" onclick="addPoids()">+</button>
+          </div>
+        </div>
+        <div class="chart-block">
+          <h3>Évolution</h3>
+          <div class="chart-filters">
+            <button class="filter-btn active" onclick="setFilter('1S', this)">1S</button>
+            <button class="filter-btn" onclick="setFilter('2S', this)">2S</button>
+            <button class="filter-btn" onclick="setFilter('1M', this)">1M</button>
+            <button class="filter-btn" onclick="setFilter('3M', this)">3M</button>
+            <button class="filter-btn" onclick="setFilter('6M', this)">6M</button>
+            <button class="filter-btn" onclick="setFilter('ALL', this)">Tout</button>
+          </div>
+          <div class="chart-container"><canvas id="poidsChart"></canvas></div>
+        </div>
+        <div class="history-block">
+          <h3>Historique</h3>
+          <div id="poids-list"></div>
+        </div>
+        <div style="text-align:center; margin: 24px 0;">
+          <button class="btn-ghost" onclick="resetSetup()">Réinitialiser la configuration</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MACROS -->
+    <section id="view-macros" class="view">
+      <h2>Macros & Nutrition</h2>
+      <p class="wip">Module en construction 🚧</p>
+    </section>
+
+    <!-- SÉANCES -->
+    <section id="view-seances" class="view">
+
+      <!-- Vue liste des séances -->
+      <div id="seances-list-view">
+        <div class="seances-grid" id="seances-cards"></div>
+        <div class="history-block" style="margin-top:14px">
+          <h3>Calendrier des séances</h3>
+          <div id="seances-calendar"></div>
+        </div>
+      </div>
+
+      <!-- Vue détail d'une séance -->
+<div id="seance-detail-view" style="display:none">
+
+  <!-- Header séance -->
+  <div class="seance-detail-header" id="seance-detail-header"></div>
+
+  <!-- Liste des exercices -->
+  <div id="seance-exercices-list"></div>
+
+  <!-- Formulaire ajout (mode edit uniquement) -->
+  <div id="add-exercice-form" style="display:none" class="setup-card">
+    <h3 style="margin-bottom:12px">Nouvel exercice</h3>
+    <div class="form-group"><label>Nom</label><input type="text" id="new-exo-nom" placeholder="ex: Développé couché" /></div>
+    <div class="form-group"><label>Séries</label><input type="number" id="new-exo-series" value="3" /></div>
+    <div class="form-group"><label>Répétitions</label><input type="number" id="new-exo-reps" value="15" /></div>
+    <div class="form-group"><label>Charge (kg)</label><input type="number" id="new-exo-charge" step="0.25" placeholder="0 = poids de corps" /></div>
+    <div class="form-group"><label>Repos entre séries (sec)</label><input type="number" id="new-exo-repos-series" value="120" /></div>
+    <div class="form-group"><label>Repos après exercice (sec)</label><input type="number" id="new-exo-repos-exo" value="180" /></div>
+    <div class="form-group"><label>Commentaire</label><input type="text" id="new-exo-comment" placeholder="optionnel" /></div>
+    <button class="btn-primary" onclick="saveNewExercice()">Ajouter</button>
+    <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="hideAddExerciceForm()">Annuler</button>
+  </div>
+
+  <!-- Bouton bas -->
+  <div id="seance-bottom-btn" style="margin-top:8px"></div>
+
+</div>
+      </div>
+
+    </section>
+<!-- VUE LANCER SÉANCE -->
+<section id="view-workout" class="view">
+
+  <!-- Écran exercice -->
+  <div id="workout-exercice-screen">
+    <div class="workout-header">
+      <span class="workout-seance-nom" id="workout-seance-nom"></span>
+      <span class="workout-progress" id="workout-progress"></span>
+    </div>
+
+    <div class="workout-exo-card">
+      <p class="workout-exo-numero" id="workout-exo-numero"></p>
+      <h2 class="workout-exo-nom" id="workout-exo-nom"></h2>
+      <div class="workout-exo-stats">
+        <div class="workout-stat">
+          <span class="workout-stat-value" id="workout-series"></span>
+          <span class="workout-stat-label">Séries</span>
+        </div>
+        <div class="workout-stat">
+          <span class="workout-stat-value" id="workout-reps"></span>
+          <span class="workout-stat-label">Reps</span>
+        </div>
+        <div class="workout-stat">
+          <span class="workout-stat-value" id="workout-charge"></span>
+          <span class="workout-stat-label">Charge</span>
+        </div>
+      </div>
+      <div class="workout-series-dots" id="workout-series-dots"></div>
+    </div>
+
+    <div class="workout-actions">
+      <button class="btn-rest" id="btn-rest" onclick="startRestSeries()">
+        <span>⏱</span> Repos série
+      </button>
+      <button class="btn-next-exo" onclick="nextExercice()">
+        Exercice suivant →
+      </button>
+    </div>
+  </div>
+
+  <!-- Écran repos entre exercices -->
+  <div id="workout-rest-screen" style="display:none">
+    <div class="rest-screen">
+      <p class="rest-label">Repos</p>
+      <div class="rest-countdown" id="rest-countdown">180</div>
+      <div class="rest-progress-ring">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="54" class="ring-bg"/>
+          <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill"/>
+        </svg>
+      </div>
+      <div class="rest-next-info">
+        <p class="rest-next-label">Prochain exercice</p>
+        <h3 class="rest-next-nom" id="rest-next-nom"></h3>
+        <div class="rest-next-stats" id="rest-next-stats"></div>
+      </div>
+      <button class="btn-skip-rest" onclick="skipRest()">Passer →</button>
+    </div>
+  </div>
+
+  <!-- Écran repos entre séries -->
+  <div id="workout-rest-series-screen" style="display:none">
+    <div class="rest-screen">
+      <p class="rest-label">Repos entre séries</p>
+      <div class="rest-countdown" id="rest-series-countdown">120</div>
+      <div class="rest-progress-ring">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="54" class="ring-bg"/>
+          <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill-series"/>
+        </svg>
+      </div>
+      <p class="rest-next-label" style="margin-top:24px">Reprends quand tu es prêt</p>
+      <button class="btn-skip-rest" onclick="skipRestSeries()">Reprendre →</button>
+    </div>
+  </div>
+
+  <!-- Écran fin de séance -->
+  <div id="workout-done-screen" style="display:none">
+    <div class="done-screen">
+      <div class="done-emoji">🏆</div>
+      <h2>Séance terminée !</h2>
+      <p id="done-recap"></p>
+      <button class="btn-primary" style="margin-top:32px" onclick="finishWorkout()">Retour aux séances</button>
+    </div>
+  </div>
+
+</section>
+  </main>
+
+  <nav id="bottom-nav">
+    <button class="nav-btn active" onclick="navigate('dashboard')"><span>🏠</span><label>Accueil</label></button>
+    <button class="nav-btn" onclick="navigate('poids')"><span>⚖️</span><label>Poids</label></button>
+    <button class="nav-btn" onclick="navigate('macros')"><span>🥗</span><label>Macros</label></button>
+    <button class="nav-btn" onclick="navigate('seances')"><span>🏋️</span><label>Séances</label></button>
+  </nav>
+
+</div>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
