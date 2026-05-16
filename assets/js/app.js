@@ -5,20 +5,28 @@ function navigate(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + view).classList.add('active');
+
   const titles = {
-    dashboard: 'Dashboard',
     poids: 'Poids & Mensurations',
     macros: 'Macros & Nutrition',
     seances: 'Séances & Exercices'
   };
-  document.getElementById('page-title').textContent = titles[view];
-  const navIndex = { dashboard: 0, poids: 1, macros: 2, seances: 3 };
-  document.querySelectorAll('.nav-btn')[navIndex[view]].classList.add('active');
+  const titleEl = document.getElementById('page-title');
+if (titleEl) titleEl.textContent = titles[view] || '';
+
+  const navMap = { poids: 'nav-poids', macros: 'nav-macros', seances: 'nav-seances' };
+  if (navMap[view]) document.getElementById(navMap[view]).classList.add('active');
+
   document.getElementById('back-btn').style.display = 'none';
-  if (view === 'poids') initPoids();
+  if (view === 'poids') { initPoids(); renderFAB(); }
+  if (view === 'macros') initMacros();
   if (view === 'seances') initSeances();
-  if (view === 'dashboard') updateDashboard();
+
+  // Cacher FAB si on quitte poids
+const fab = document.getElementById('fab-poids');
+if (fab) fab.style.display = view === 'poids' ? 'flex' : 'none';
 }
+
 
 function goBack() {
   if (previousView === 'seance-detail') {
@@ -590,7 +598,7 @@ function resetSetup() {
 }
 
 let poidsChart = null;
-let currentFilter = 'ALL';
+let currentFilter = '1S';
 
 function initPoids() {
   const config = getConfig();
@@ -602,7 +610,6 @@ function initPoids() {
   }
   document.getElementById('poids-setup').style.display = 'none';
   document.getElementById('poids-content').style.display = 'block';
-  document.getElementById('new-date').value = today();
   renderStats(config);
   renderChart(config, currentFilter);
   renderHistory();
@@ -631,43 +638,239 @@ function renderStats(config) {
   const imcActuel = calcIMC(poidsActuel, config.taille);
   const imcCible = calcIMC(config.poidsCible, config.taille);
 
-  document.getElementById('info-poids-depart').textContent = config.poidsDepart + ' kg';
+  // Hero
+  document.getElementById('hero-poids').textContent = poidsActuel.toString().replace('.', ',');
+  document.getElementById('hero-date').textContent = last ? formatDate(last.date) : formatDate(config.dateDepart);
+  document.getElementById('hero-imc').textContent = 'IMC ' + imcActuel + ' · ' + imcLabel(parseFloat(imcActuel));
+
+  // Départ / Objectif
+  document.getElementById('info-poids-depart').innerHTML = config.poidsDepart + ' <span>kg</span>';
   document.getElementById('info-imc-depart').textContent = 'IMC ' + imcDepart;
   document.getElementById('info-date-depart').textContent = formatDate(config.dateDepart);
-  document.getElementById('info-poids-actuel').textContent = poidsActuel + ' kg';
-  document.getElementById('info-imc-actuel').textContent = 'IMC ' + imcActuel;
-  document.getElementById('info-poids-cible').textContent = config.poidsCible + ' kg';
+  document.getElementById('info-poids-cible').innerHTML = config.poidsCible + ' <span>kg</span>';
   document.getElementById('info-imc-cible').textContent = 'IMC ' + imcCible;
   document.getElementById('info-date-cible').textContent = formatDate(config.dateCible);
 
+  // Progression poids
   const totalPoids = config.poidsCible - config.poidsDepart;
   const faitPoids = poidsActuel - config.poidsDepart;
   const pctPoids = totalPoids === 0 ? 0 : Math.min(100, Math.max(0, (faitPoids / totalPoids) * 100));
   document.getElementById('pct-poids').textContent = pctPoids.toFixed(0) + '%';
   document.getElementById('bar-poids').style.width = pctPoids + '%';
 
+  // Progression durée
   const totalJours = daysBetween(config.dateDepart, config.dateCible);
   const joursEcoules = daysBetween(config.dateDepart, today());
   const pctDuree = totalJours === 0 ? 0 : Math.min(100, Math.max(0, (joursEcoules / totalJours) * 100));
   document.getElementById('pct-duree').textContent = pctDuree.toFixed(0) + '%';
   document.getElementById('bar-duree').style.width = pctDuree + '%';
 
-  document.getElementById('stat-graisse').textContent = calcGraisse(parseFloat(imcActuel)) + '%';
+  // Stats
   const prisPoids = (poidsActuel - config.poidsDepart).toFixed(1);
   document.getElementById('stat-pris').textContent = (prisPoids > 0 ? '+' : '') + prisPoids + ' kg';
   document.getElementById('stat-restant').textContent = (config.poidsCible - poidsActuel).toFixed(1) + ' kg';
-  document.getElementById('stat-imc').textContent = imcActuel;
-  document.getElementById('stat-imc-label').textContent = imcLabel(parseFloat(imcActuel));
-
-  const joursReels = daysBetween(config.dateDepart, last ? last.date : today());
-  if (joursReels > 0 && entries.length > 1) {
-    const gainTotal = (poidsActuel - config.poidsDepart) * 1000;
-    document.getElementById('stat-gain-jour').textContent = (gainTotal / joursReels).toFixed(0) + ' g';
-    document.getElementById('stat-gain-sem').textContent = (gainTotal / joursReels * 7).toFixed(0) + ' g';
-  }
-
+  document.getElementById('stat-graisse').textContent = calcGraisse(parseFloat(imcActuel)) + '%';
   const bmr = 10 * poidsActuel + 6.25 * config.taille - 5 * 30 + 5;
   document.getElementById('stat-calories').textContent = (Math.round(bmr * 1.55) + 300) + ' kcal';
+
+  // Historique preview (3 dernières)
+  renderHistoriquePreview(entries);
+}
+
+function renderHistoriquePreview(entries) {
+  const container = document.getElementById('poids-list-preview');
+  if (!container) return;
+  if (!entries.length) {
+    container.innerHTML = '<p style="color:#666;font-size:14px">Aucune entrée.</p>';
+    return;
+  }
+  const reversed = [...entries].reverse().slice(0, 3);
+  container.innerHTML = reversed.map((e, i) => {
+    const prev = [...entries].reverse()[i + 1];
+    let badgeClass = 'badge-new-same';
+    let badgeIcon = '→';
+    if (prev) {
+      const diff = e.poids - prev.poids;
+      if (diff > 0.05) { badgeClass = 'badge-new-up'; badgeIcon = '↑'; }
+      else if (diff < -0.05) { badgeClass = 'badge-new-down'; badgeIcon = '↓'; }
+    }
+    const d = new Date(e.date + 'T00:00:00');
+    const dateStr = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return `
+      <div class="history-item-new">
+        <div class="history-item-new-left">
+          <div class="history-item-new-date">${dateStr}</div>
+        </div>
+        <div class="history-item-new-right">
+          <div class="history-badge-new ${badgeClass}">${badgeIcon}</div>
+          <div class="history-item-new-poids">${e.poids} <span>kg</span></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openHistorique() {
+  const entries = getEntries();
+  const reversed = [...entries].reverse();
+  const container = document.getElementById('historique-complet-list');
+  container.innerHTML = reversed.map((e, i) => {
+    const prev = reversed[i + 1];
+    let badgeClass = 'badge-new-same';
+    let badgeIcon = '→';
+    if (prev) {
+      const diff = e.poids - prev.poids;
+      if (diff > 0.05) { badgeClass = 'badge-new-up'; badgeIcon = '↑'; }
+      else if (diff < -0.05) { badgeClass = 'badge-new-down'; badgeIcon = '↓'; }
+    }
+    const d = new Date(e.date + 'T00:00:00');
+    const dateStr = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return `
+      <div class="history-item-new">
+        <div class="history-item-new-left">
+          <div class="history-item-new-date">${dateStr}</div>
+        </div>
+        <div class="history-item-new-right">
+          <div class="history-badge-new ${badgeClass}">${badgeIcon}</div>
+          <div class="history-item-new-poids">${e.poids} <span>kg</span></div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('historique-overlay').style.display = 'flex';
+  document.getElementById('historique-overlay').style.flexDirection = 'column';
+  document.getElementById('historique-overlay').style.overflowY = 'auto';
+}
+
+function closeHistorique() {
+  document.getElementById('historique-overlay').style.display = 'none';
+}
+
+// ===== GRAPHIQUE DÉTAILLÉ =====
+let detailChart = null;
+let detailFilter = 'ALL';
+
+function openGraphDetail() {
+  document.getElementById('graph-detail-overlay').style.display = 'flex';
+  document.getElementById('graph-detail-overlay').style.flexDirection = 'column';
+  renderDetailChart(detailFilter);
+  initDetailTouch();
+}
+
+function closeGraphDetail() {
+  document.getElementById('graph-detail-overlay').style.display = 'none';
+}
+
+function setDetailFilter(filter, btn) {
+  detailFilter = filter;
+  document.querySelectorAll('.graph-detail-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDetailChart(filter);
+}
+
+function renderDetailChart(filter) {
+  const config = getConfig();
+  const entries = filterEntries(getEntries(), filter);
+  const labels = entries.map(e => new Date(e.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }));
+  const data = entries.map(e => e.poids);
+  const objectifData = entries.map(e => {
+    const t = daysBetween(config.dateDepart, e.date);
+    const total = daysBetween(config.dateDepart, config.dateCible);
+    return total === 0 ? config.poidsDepart : parseFloat((config.poidsDepart + (config.poidsCible - config.poidsDepart) * (t / total)).toFixed(2));
+  });
+  const tendanceData = linearRegression(entries);
+  const ctx = document.getElementById('poidsChartDetail').getContext('2d');
+  if (detailChart) detailChart.destroy();
+  detailChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Poids réel',
+          data,
+          borderColor: '#e8ff47',
+          backgroundColor: 'rgba(232,255,71,0.06)',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#e8ff47',
+          pointRadius: 4,
+          tension: 0.4,
+          fill: true,
+        },
+        {
+          label: 'Objectif',
+          data: objectifData,
+          borderColor: '#2ed573',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          tension: 0,
+          fill: false,
+        },
+        {
+          label: 'Tendance',
+          data: tendanceData,
+          borderColor: '#ff6b35',
+          borderWidth: 1.5,
+          borderDash: [3, 3],
+          pointRadius: 0,
+          tension: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+  legend: {
+    labels: {
+      color: '#888',
+      font: { size: 11 },
+      boxWidth: 20,
+      boxHeight: 1,
+      usePointStyle: true,
+      pointStyle: 'line',
+    }
+  },
+  tooltip: { enabled: false }
+},
+      scales: {
+        x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1e1e1e' } },
+        y: { ticks: { color: '#666', font: { size: 10 }, callback: v => v + ' kg' }, grid: { color: '#1e1e1e' } }
+      }
+    }
+  });
+}
+
+function initDetailTouch() {
+  const canvas = document.getElementById('poidsChartDetail');
+  const tooltip = document.getElementById('graph-tooltip');
+  const tooltipDate = document.getElementById('tooltip-date');
+  const tooltipPoids = document.getElementById('tooltip-poids');
+
+  function handleTouch(e) {
+    e.preventDefault();
+    const touch = e.touches ? e.touches[0] : e;
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    if (!detailChart) return;
+    const points = detailChart.getElementsAtEventForMode(
+      { clientX: touch.clientX, clientY: touch.clientY },
+      'index', { intersect: false }, false
+    );
+    if (points.length) {
+      const idx = points[0].index;
+      const label = detailChart.data.labels[idx];
+      const val = detailChart.data.datasets[0].data[idx];
+      tooltipDate.textContent = label;
+      tooltipPoids.textContent = val + ' kg';
+      tooltip.style.display = 'flex';
+    }
+  }
+
+  canvas.addEventListener('touchmove', handleTouch, { passive: false });
+  canvas.addEventListener('touchstart', handleTouch, { passive: false });
+  canvas.addEventListener('mousemove', handleTouch);
 }
 
 function addPoids() {
@@ -729,9 +932,18 @@ function renderChart(config, filter) {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#888', font: { size: 11 }, boxWidth: 20 } },
-        tooltip: { backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1, titleColor: '#fff', bodyColor: '#aaa' }
-      },
+  legend: {
+    labels: {
+      color: '#888',
+      font: { size: 11 },
+      boxWidth: 20,
+      boxHeight: 1,
+      usePointStyle: true,
+      pointStyle: 'line',
+    }
+  },
+  tooltip: { enabled: false }
+},
       scales: {
         x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1e1e1e' } },
         y: { ticks: { color: '#666', font: { size: 10 }, callback: v => v + ' kg' }, grid: { color: '#1e1e1e' } }
@@ -773,5 +985,523 @@ function renderHistory() {
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
-  updateDashboard();
+  setTimeout(() => {
+    navigate('poids');
+    initPoids();
+  }, 100);
 });
+
+// ===== MACROS =====
+
+const MACRO_PROFILES = {
+  repos: { kcal: 2800, prot: 160, gluc: 330, lip: 80 },
+  push: { kcal: 3000, prot: 175, gluc: 370, lip: 85 },
+  pull: { kcal: 3000, prot: 175, gluc: 370, lip: 85 },
+  legs: { kcal: 3100, prot: 180, gluc: 390, lip: 88 }
+};
+
+const DAY_TYPE_LABELS = {
+  repos: '⚪ Jour Repos',
+  push: '🔴 Jour Push',
+  pull: '🟢 Jour Pull',
+  legs: '🔵 Jour Legs'
+};
+
+// Storage
+function getMacrosLog() { return JSON.parse(localStorage.getItem('macrosLog') || '{}'); }
+function saveMacrosLog(l) { localStorage.setItem('macrosLog', JSON.stringify(l)); }
+function getBiblio() { return JSON.parse(localStorage.getItem('macroBiblio') || '[]'); }
+function saveBiblio(b) { localStorage.setItem('macroBiblio', JSON.stringify(b)); }
+
+function getTodayMacros() {
+  const log = getMacrosLog();
+  const t = today();
+  if (!log[t]) log[t] = { type: 'repos', meals: [] };
+  return log[t];
+}
+
+function saveTodayMacros(data) {
+  const log = getMacrosLog();
+  log[today()] = data;
+  saveMacrosLog(log);
+}
+
+// Init
+let macroChart = null;
+
+function initMacros() {
+  const data = getTodayMacros();
+
+  // Date et type du jour
+  const dateStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('macro-day-date').textContent = dateStr;
+  document.getElementById('macro-day-type').textContent = DAY_TYPE_LABELS[data.type];
+
+  // Boutons type actifs
+  document.querySelectorAll('.macro-day-btn').forEach(b => {
+    b.className = 'macro-day-btn';
+    if (b.getAttribute('onclick').includes(data.type)) {
+      b.classList.add('active-' + data.type);
+    }
+  });
+
+  renderMacroRings(data);
+  renderMealsList(data);
+  renderMacroChart();
+  renderBiblio();
+}
+
+// Changer type de jour
+function changeDayType(type) {
+  const data = getTodayMacros();
+  data.type = type;
+  saveTodayMacros(data);
+  initMacros();
+}
+
+// Rings
+function renderMacroRings(data) {
+  const profile = MACRO_PROFILES[data.type];
+  const totals = calcTotals(data.meals);
+  const circumference = 213.6;
+
+  const rings = [
+    { id: 'kcal', val: totals.kcal, target: profile.kcal, unit: 'kcal' },
+    { id: 'prot', val: totals.prot, target: profile.prot, unit: 'g' },
+    { id: 'gluc', val: totals.gluc, target: profile.gluc, unit: 'g' },
+    { id: 'lip', val: totals.lip, target: profile.lip, unit: 'g' },
+  ];
+
+  rings.forEach(r => {
+    const pct = Math.min(1, r.val / r.target);
+    const offset = circumference - pct * circumference;
+    document.getElementById('ring-' + r.id).style.strokeDashoffset = offset;
+    document.getElementById('ring-val-' + r.id).textContent = Math.round(r.val);
+    document.getElementById('ring-target-' + r.id).textContent = '/ ' + r.target + ' ' + r.unit;
+  });
+}
+
+function calcTotals(meals) {
+  return meals.reduce((acc, m) => ({
+    kcal: acc.kcal + (m.kcal || 0),
+    prot: acc.prot + (m.prot || 0),
+    gluc: acc.gluc + (m.gluc || 0),
+    lip: acc.lip + (m.lip || 0),
+  }), { kcal: 0, prot: 0, gluc: 0, lip: 0 });
+}
+
+// Meals list
+function renderMealsList(data) {
+  const container = document.getElementById('macro-meals-list');
+  if (!data.meals.length) {
+    container.innerHTML = '<p style="color:#666;font-size:14px">Aucun repas enregistré aujourd\'hui.</p>';
+    return;
+  }
+  container.innerHTML = data.meals.map((m, i) => `
+    <div class="meal-item">
+      <div>
+        <div class="meal-nom">${m.nom}</div>
+        <div class="meal-macros">P: ${m.prot}g · G: ${m.gluc}g · L: ${m.lip}g</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="meal-kcal">${m.kcal} kcal</span>
+        <button class="meal-delete" onclick="deleteMeal(${i})">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteMeal(idx) {
+  const data = getTodayMacros();
+  data.meals.splice(idx, 1);
+  saveTodayMacros(data);
+  initMacros();
+}
+
+// Tabs
+function switchMacroTab(tab, btn) {
+  document.querySelectorAll('.macro-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.macro-tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('macro-tab-' + tab).classList.add('active');
+}
+
+// ===== SAISIE MANUELLE =====
+function addManualMacros() {
+  const nom = document.getElementById('manual-nom').value.trim() || 'Repas';
+  const kcal = parseFloat(document.getElementById('manual-kcal').value) || 0;
+  const prot = parseFloat(document.getElementById('manual-prot').value) || 0;
+  const gluc = parseFloat(document.getElementById('manual-gluc').value) || 0;
+  const lip = parseFloat(document.getElementById('manual-lip').value) || 0;
+
+  if (!kcal && !prot && !gluc && !lip) { alert('Renseigne au moins une valeur.'); return; }
+
+  const data = getTodayMacros();
+  data.meals.push({ nom, kcal, prot, gluc, lip });
+  saveTodayMacros(data);
+
+  // Reset
+  ['manual-nom', 'manual-kcal', 'manual-prot', 'manual-gluc', 'manual-lip'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+
+  initMacros();
+}
+
+// ===== BIBLIOTHÈQUE =====
+function renderBiblio() {
+  const biblio = getBiblio();
+  const container = document.getElementById('biblio-list');
+  if (!biblio.length) {
+    container.innerHTML = '<p style="color:#666;font-size:14px;margin-bottom:8px">Aucun aliment sauvegardé.</p>';
+    return;
+  }
+  container.innerHTML = biblio.map((item, i) => `
+    <div class="biblio-item">
+      <div>
+        <div class="biblio-item-nom">${item.nom}</div>
+        <div class="biblio-item-macros">${item.kcal} kcal · P: ${item.prot}g · G: ${item.gluc}g · L: ${item.lip}g</div>
+      </div>
+      <div class="biblio-item-actions">
+        <button class="btn-icon" onclick="addFromBiblio(${i})" title="Ajouter">+</button>
+        <button class="btn-icon danger" onclick="deleteBiblioItem(${i})" title="Supprimer">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addFromBiblio(idx) {
+  const item = getBiblio()[idx];
+  const data = getTodayMacros();
+  data.meals.push({ ...item });
+  saveTodayMacros(data);
+  initMacros();
+}
+
+function showAddBiblioForm() { document.getElementById('biblio-add-form').style.display = 'block'; }
+function hideAddBiblioForm() { document.getElementById('biblio-add-form').style.display = 'none'; }
+
+function saveBiblioItem() {
+  const nom = document.getElementById('biblio-nom').value.trim();
+  if (!nom) { alert('Renseigne un nom.'); return; }
+  const item = {
+    nom,
+    kcal: parseFloat(document.getElementById('biblio-kcal').value) || 0,
+    prot: parseFloat(document.getElementById('biblio-prot').value) || 0,
+    gluc: parseFloat(document.getElementById('biblio-gluc').value) || 0,
+    lip: parseFloat(document.getElementById('biblio-lip').value) || 0,
+  };
+  const biblio = getBiblio();
+  biblio.push(item);
+  saveBiblio(biblio);
+  hideAddBiblioForm();
+  ['biblio-nom', 'biblio-kcal', 'biblio-prot', 'biblio-gluc', 'biblio-lip'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  renderBiblio();
+}
+
+function deleteBiblioItem(idx) {
+  if (!confirm('Supprimer cet aliment ?')) return;
+  const biblio = getBiblio();
+  biblio.splice(idx, 1);
+  saveBiblio(biblio);
+  renderBiblio();
+}
+
+// ===== VOCAL =====
+let recognition = null;
+let isRecording = false;
+let pendingVocalMacros = null;
+
+function toggleVoice() {
+  if (isRecording) {
+    stopVoice();
+  } else {
+    startVoice();
+  }
+}
+
+function startVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('La reconnaissance vocale n\'est pas supportée sur ce navigateur. Utilise Chrome.');
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'fr-FR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('btn-mic').classList.add('recording');
+    document.getElementById('macro-vocal-text').textContent = 'En écoute... Parle !';
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById('macro-vocal-text').textContent = '"' + transcript + '"';
+    analyzeWithClaude(transcript);
+  };
+
+  recognition.onerror = () => {
+    stopVoice();
+    document.getElementById('macro-vocal-text').textContent = 'Erreur. Réessaie.';
+  };
+
+  recognition.onend = () => { stopVoice(); };
+  recognition.start();
+}
+
+function stopVoice() {
+  isRecording = false;
+  document.getElementById('btn-mic').classList.remove('recording');
+  if (recognition) recognition.stop();
+}
+
+async function analyzeWithClaude(transcript) {
+  document.getElementById('macro-vocal-loading').style.display = 'flex';
+  document.getElementById('macro-vocal-result').style.display = 'none';
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `Analyse ce repas et retourne UNIQUEMENT un JSON valide sans markdown ni backticks :
+{"nom":"nom du repas","kcal":0,"prot":0,"gluc":0,"lip":0,"detail":"description courte des aliments"}
+
+Repas décrit : "${transcript}"
+
+Utilise des valeurs nutritionnelles moyennes françaises. Sois précis.`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content[0].text.trim();
+    const parsed = JSON.parse(text);
+    pendingVocalMacros = parsed;
+
+    document.getElementById('macro-vocal-loading').style.display = 'none';
+    document.getElementById('macro-vocal-result').style.display = 'block';
+    document.getElementById('macro-vocal-parsed').innerHTML = `
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">${parsed.detail}</p>
+      <div class="workout-exo-stats" style="margin:0">
+        <div class="workout-stat"><span class="workout-stat-value">${parsed.kcal}</span><span class="workout-stat-label">kcal</span></div>
+        <div class="workout-stat"><span class="workout-stat-value">${parsed.prot}g</span><span class="workout-stat-label">Protéines</span></div>
+        <div class="workout-stat"><span class="workout-stat-value">${parsed.gluc}g</span><span class="workout-stat-label">Glucides</span></div>
+        <div class="workout-stat"><span class="workout-stat-value">${parsed.lip}g</span><span class="workout-stat-label">Lipides</span></div>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('macro-vocal-loading').style.display = 'none';
+    document.getElementById('macro-vocal-text').textContent = 'Erreur d\'analyse. Réessaie ou utilise la saisie manuelle.';
+  }
+}
+
+function confirmVocalMacros() {
+  if (!pendingVocalMacros) return;
+  const data = getTodayMacros();
+  data.meals.push(pendingVocalMacros);
+  saveTodayMacros(data);
+  pendingVocalMacros = null;
+  document.getElementById('macro-vocal-result').style.display = 'none';
+  document.getElementById('macro-vocal-text').textContent = 'Appuie pour parler...';
+  initMacros();
+}
+
+function cancelVocalMacros() {
+  pendingVocalMacros = null;
+  document.getElementById('macro-vocal-result').style.display = 'none';
+  document.getElementById('macro-vocal-text').textContent = 'Appuie pour parler...';
+}
+
+// ===== GRAPHE HEBDO =====
+function renderMacroChart() {
+  const log = getMacrosLog();
+  const labels = [];
+  const kcalData = [];
+  const protData = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split('T')[0];
+    const dayData = log[key];
+    labels.push(d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }));
+    const totals = dayData ? calcTotals(dayData.meals) : { kcal: 0, prot: 0 };
+    kcalData.push(totals.kcal);
+    protData.push(totals.prot);
+  }
+
+  const ctx = document.getElementById('macroChart').getContext('2d');
+  if (macroChart) macroChart.destroy();
+
+  macroChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Calories',
+          data: kcalData,
+          backgroundColor: 'rgba(232,255,71,0.3)',
+          borderColor: '#e8ff47',
+          borderWidth: 2,
+          borderRadius: 6,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Protéines (g)',
+          data: protData,
+          backgroundColor: 'rgba(255,71,87,0.3)',
+          borderColor: '#ff4757',
+          borderWidth: 2,
+          borderRadius: 6,
+          type: 'line',
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#888', font: { size: 11 }, boxWidth: 16 } },
+        tooltip: { backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1, titleColor: '#fff', bodyColor: '#aaa' }
+      },
+      scales: {
+        x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1e1e1e' } },
+        y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1e1e1e' }, position: 'left' },
+        y1: { ticks: { color: '#666', font: { size: 10 } }, grid: { display: false }, position: 'right' }
+      }
+    }
+  });
+}
+
+// ===== SETTINGS =====
+function openSettings() {
+  const config = getConfig();
+  if (config) {
+    document.getElementById('settings-taille').textContent = config.taille + ' cm';
+    document.getElementById('settings-poids-depart').textContent = config.poidsDepart + ' kg';
+    document.getElementById('settings-poids-cible').textContent = config.poidsCible + ' kg';
+    document.getElementById('settings-date-cible').textContent = formatDate(config.dateCible);
+  }
+  document.getElementById('settings-overlay').style.display = 'flex';
+  document.getElementById('settings-overlay').style.flexDirection = 'column';
+  document.getElementById('settings-btn').style.display = 'none';
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').style.display = 'none';
+  document.getElementById('settings-btn').style.display = 'flex';
+}
+
+// ===== FAB + BOTTOMSHEET POIDS =====
+function openPoidsBottomsheet() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+  document.getElementById('bottomsheet-date').textContent = dateStr;
+
+  // Génère les valeurs de 30 à 150 kg par 0.1
+  const picker = document.getElementById('poids-picker');
+  picker.innerHTML = '';
+  const entries = getEntries();
+  const last = entries.length ? entries[entries.length - 1].poids : 70;
+  const values = [];
+  for (let v = 30; v <= 150; v += 0.1) {
+    values.push(parseFloat(v.toFixed(1)));
+  }
+
+  values.forEach(v => {
+    const item = document.createElement('div');
+    item.className = 'poids-picker-item';
+    item.textContent = v.toFixed(1) + ' kg';
+    item.dataset.value = v;
+    picker.appendChild(item);
+  });
+
+  // Scroll vers le dernier poids connu
+  const targetIdx = values.findIndex(v => Math.abs(v - last) < 0.05);
+  const itemHeight = 40;
+  picker.scrollTop = targetIdx * itemHeight;
+  updatePickerSelected(picker);
+
+  // Overlay + animation
+  document.getElementById('poids-bottomsheet-overlay').style.display = 'block';
+  requestAnimationFrame(() => {
+    document.getElementById('poids-bottomsheet').classList.add('open');
+  });
+
+  // Écoute le scroll
+  picker.addEventListener('scroll', () => updatePickerSelected(picker), { passive: true });
+}
+
+function updatePickerSelected(picker) {
+  const itemHeight = 40;
+  const scrollTop = picker.scrollTop;
+  const centerIdx = Math.round(scrollTop / itemHeight);
+  const items = picker.querySelectorAll('.poids-picker-item');
+
+  items.forEach((item, i) => {
+    item.classList.toggle('selected', i === centerIdx);
+  });
+
+  const selectedItem = items[centerIdx];
+  if (selectedItem) {
+    document.getElementById('poids-picker-selected').textContent = selectedItem.dataset.value + ' kg';
+  }
+}
+
+function closePoidsBottomsheet() {
+  document.getElementById('poids-bottomsheet').classList.remove('open');
+  setTimeout(() => {
+    document.getElementById('poids-bottomsheet-overlay').style.display = 'none';
+  }, 350);
+}
+
+function confirmPoidsBottomsheet() {
+  const valStr = document.getElementById('poids-picker-selected').textContent.replace(' kg', '');
+  const poids = parseFloat(valStr);
+  if (!poids) return;
+
+  const date = today();
+  const entries = getEntries();
+  const exists = entries.findIndex(e => e.date === date);
+
+  if (exists >= 0) {
+    if (!confirm('Une entrée existe déjà pour aujourd\'hui. La remplacer ?')) return;
+    entries[exists].poids = poids;
+  } else {
+    entries.push({ date, poids });
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  saveEntries(entries);
+  closePoidsBottomsheet();
+  initPoids();
+}
+
+// ===== MISE À JOUR initPoids POUR FAB =====
+function renderFAB() {
+  // Supprime l'ancien FAB s'il existe
+  const old = document.getElementById('fab-poids');
+  if (old) old.remove();
+
+  const fab = document.createElement('button');
+  fab.id = 'fab-poids';
+  fab.className = 'fab-add';
+  fab.innerHTML = '+';
+  fab.onclick = openPoidsBottomsheet;
+  document.getElementById('app').appendChild(fab);
+}

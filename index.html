@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="MassTracker" />
   <title>MassTracker</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -15,35 +18,19 @@
 <div id="app">
 
   <header>
-    <button id="back-btn" onclick="goBack()" style="display:none">← Retour</button>
-    <h1 id="page-title">Dashboard</h1>
-  </header>
+  <button id="back-btn" onclick="goBack()" style="display:none">← Retour</button>
+  <button class="btn-settings" id="settings-btn" onclick="openSettings()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
+</header>
 
   <main id="main-content">
 
-    <!-- DASHBOARD -->
-    <section id="view-dashboard" class="view active">
-      <div class="cards-grid">
-        <div class="card" onclick="navigate('poids')">
-          <span class="card-icon">⚖️</span>
-          <h2>Poids & Mensurations</h2>
-          <p class="card-value" id="dash-poids">-- kg</p>
-        </div>
-        <div class="card" onclick="navigate('macros')">
-          <span class="card-icon">🥗</span>
-          <h2>Macros & Nutrition</h2>
-          <p class="card-value" id="dash-macros">-- kcal</p>
-        </div>
-        <div class="card" onclick="navigate('seances')">
-          <span class="card-icon">🏋️</span>
-          <h2>Séances</h2>
-          <p class="card-value" id="dash-seances">-- séances</p>
-        </div>
-      </div>
-    </section>
-
     <!-- POIDS -->
-    <section id="view-poids" class="view">
+    <section id="view-poids" class="view active">
       <div id="poids-setup" class="setup-card" style="display:none">
         <h2>Configuration initiale</h2>
         <p class="setup-subtitle">Renseigne tes données de départ pour commencer le suivi</p>
@@ -55,80 +42,250 @@
         <button class="btn-primary" onclick="saveSetup()">Démarrer le suivi</button>
       </div>
       <div id="poids-content" style="display:none">
-        <div class="triple-block">
-          <div class="triple-item">
-            <span class="triple-label">Départ</span>
-            <span class="triple-value" id="info-poids-depart">--</span>
-            <span class="triple-sub" id="info-imc-depart">IMC --</span>
-            <span class="triple-date" id="info-date-depart">--</span>
-          </div>
-          <div class="triple-item triple-center">
-            <span class="triple-label">Actuel</span>
-            <span class="triple-value accent" id="info-poids-actuel">--</span>
-            <span class="triple-sub" id="info-imc-actuel">IMC --</span>
-          </div>
-          <div class="triple-item">
-            <span class="triple-label">Objectif</span>
-            <span class="triple-value" id="info-poids-cible">--</span>
-            <span class="triple-sub" id="info-imc-cible">IMC --</span>
-            <span class="triple-date" id="info-date-cible">--</span>
-          </div>
-        </div>
-        <div class="progress-block">
-          <div class="progress-row"><span class="progress-label">Progression poids</span><span class="progress-pct" id="pct-poids">0%</span></div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-poids" style="width:0%"></div></div>
-          <div class="progress-row"><span class="progress-label">Progression durée</span><span class="progress-pct" id="pct-duree">0%</span></div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-duree" style="width:0%"></div></div>
-        </div>
-        <div class="stats-grid">
-          <div class="stat-card"><span class="stat-label">Graisses corporelles</span><span class="stat-value" id="stat-graisse">--%</span></div>
-          <div class="stat-card"><span class="stat-label">Pris depuis le début</span><span class="stat-value" id="stat-pris">-- kg</span></div>
-          <div class="stat-card"><span class="stat-label">Restant</span><span class="stat-value" id="stat-restant">-- kg</span></div>
-          <div class="stat-card"><span class="stat-label">IMC</span><span class="stat-value" id="stat-imc">--</span><span class="stat-badge" id="stat-imc-label">--</span></div>
-          <div class="stat-card"><span class="stat-label">Gain / jour</span><span class="stat-value" id="stat-gain-jour">-- g</span></div>
-          <div class="stat-card"><span class="stat-label">Gain / semaine</span><span class="stat-value" id="stat-gain-sem">-- g</span></div>
-          <div class="stat-card full-width"><span class="stat-label">Calories recommandées / jour</span><span class="stat-value" id="stat-calories">-- kcal</span></div>
-        </div>
-        <div class="add-block">
-          <h3>Ajouter un poids</h3>
-          <div class="add-row">
-            <input type="number" id="new-poids" step="0.1" placeholder="ex: 76.5" />
-            <input type="date" id="new-date" />
-            <button class="btn-primary" onclick="addPoids()">+</button>
-          </div>
-        </div>
-        <div class="chart-block">
-          <h3>Évolution</h3>
-          <div class="chart-filters">
-            <button class="filter-btn active" onclick="setFilter('1S', this)">1S</button>
-            <button class="filter-btn" onclick="setFilter('2S', this)">2S</button>
-            <button class="filter-btn" onclick="setFilter('1M', this)">1M</button>
-            <button class="filter-btn" onclick="setFilter('3M', this)">3M</button>
-            <button class="filter-btn" onclick="setFilter('6M', this)">6M</button>
-            <button class="filter-btn" onclick="setFilter('ALL', this)">Tout</button>
-          </div>
-          <div class="chart-container"><canvas id="poidsChart"></canvas></div>
-        </div>
-        <div class="history-block">
-          <h3>Historique</h3>
-          <div id="poids-list"></div>
-        </div>
-        <div style="text-align:center; margin: 24px 0;">
-          <button class="btn-ghost" onclick="resetSetup()">Réinitialiser la configuration</button>
-        </div>
+
+  <!-- HERO -->
+  <div class="poids-hero">
+    <p class="poids-hero-label">POIDS ACTUEL</p>
+    <div class="poids-hero-value">
+      <span id="hero-poids">--</span><span class="poids-hero-unit">kg</span>
+    </div>
+    <div class="poids-hero-sub">
+      <span class="poids-hero-date" id="hero-date">--</span>
+      <span class="poids-hero-imc" id="hero-imc">IMC -- · --</span>
+    </div>
+  </div>
+
+  <!-- ÉVOLUTION -->
+  <div class="evolution-card">
+    <h3 class="section-title">Évolution</h3>
+    <div class="evo-progress-block">
+      <div class="evo-progress-row">
+        <span class="evo-progress-label">PROGRÈS</span>
+        <span class="evo-progress-pct accent" id="pct-poids">0%</span>
       </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-poids" style="width:0%"></div></div>
+      <div class="evo-progress-row" style="margin-top:12px">
+        <span class="evo-progress-label">DURÉE</span>
+        <span class="evo-progress-pct" id="pct-duree">0%</span>
+      </div>
+      <div class="progress-bar-bg progress-bar-bg--dim"><div class="progress-bar-fill progress-bar-fill--dim" id="bar-duree" style="width:0%"></div></div>
+    </div>
+    <div class="evo-depart-objectif">
+      <div class="evo-depart">
+        <p class="evo-do-label">DÉPART</p>
+        <p class="evo-do-date" id="info-date-depart">--</p>
+        <p class="evo-do-poids" id="info-poids-depart">-- <span>kg</span></p>
+        <p class="evo-do-imc" id="info-imc-depart">IMC --</p>
+      </div>
+      <div class="evo-objectif">
+        <p class="evo-do-label">OBJECTIF</p>
+        <p class="evo-do-date" id="info-date-cible">--</p>
+        <p class="evo-do-poids" id="info-poids-cible">-- <span>kg</span></p>
+        <p class="evo-do-imc" id="info-imc-cible">IMC --</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRAPHIQUE -->
+  <div class="graph-card">
+    <h3 class="section-title">Évolution</h3>
+    <div class="chart-filters">
+      <button class="filter-btn active" onclick="setFilter('1S', this)">7J</button>
+      <button class="filter-btn" onclick="setFilter('2S', this)">15J</button>
+      <button class="filter-btn" onclick="setFilter('1M', this)">1M</button>
+      <button class="filter-btn" onclick="setFilter('3M', this)">3M</button>
+      <button class="filter-btn" onclick="setFilter('ALL', this)">TOUT</button>
+    </div>
+    <div class="chart-container"><canvas id="poidsChart"></canvas></div>
+    <button class="btn-graph-detail" onclick="openGraphDetail()">Voir le graphique détaillé</button>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-section">
+    <h3 class="section-title">Statistiques</h3>
+    <div class="stats-grid-new">
+      <div class="stat-card-new">
+        <span class="stat-card-icon">🏃</span>
+        <span class="stat-card-label">GAINS CUMULÉS</span>
+        <span class="stat-card-value accent" id="stat-pris">-- kg</span>
+      </div>
+      <div class="stat-card-new">
+        <span class="stat-card-icon">🎯</span>
+        <span class="stat-card-label">POIDS RESTANT</span>
+        <span class="stat-card-value" id="stat-restant">-- kg</span>
+      </div>
+      <div class="stat-card-new">
+        <span class="stat-card-icon">⭕</span>
+        <span class="stat-card-label">MASSE GRASSE</span>
+        <span class="stat-card-value" id="stat-graisse">--%</span>
+      </div>
+      <div class="stat-card-new">
+        <span class="stat-card-icon">🍽</span>
+        <span class="stat-card-label">CALORIES</span>
+        <span class="stat-card-value" id="stat-calories">-- kcal</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORIQUE -->
+  <div class="historique-section">
+    <h3 class="section-title">Historique de poids</h3>
+    <div id="poids-list-preview"></div>
+    <button class="btn-tout-voir" onclick="openHistorique()">Tout voir</button>
+  </div>
+</div>
+
+<!-- GRAPHIQUE DÉTAILLÉ (plein écran) -->
+<div id="graph-detail-overlay" style="display:none" class="graph-detail-overlay">
+  <div class="graph-detail-header">
+    <button class="btn-close-graph" onclick="closeGraphDetail()">← Retour</button>
+    <span>Évolution du poids</span>
+  </div>
+  <div class="graph-detail-filters">
+    <button class="filter-btn active" onclick="setDetailFilter('1S', this)">7J</button>
+    <button class="filter-btn" onclick="setDetailFilter('2S', this)">15J</button>
+    <button class="filter-btn" onclick="setDetailFilter('1M', this)">1M</button>
+    <button class="filter-btn" onclick="setDetailFilter('3M', this)">3M</button>
+    <button class="filter-btn" onclick="setDetailFilter('ALL', this)">TOUT</button>
+  </div>
+  <div class="graph-detail-tooltip" id="graph-tooltip" style="display:none">
+    <span id="tooltip-date"></span>
+    <span id="tooltip-poids"></span>
+  </div>
+  <div class="graph-detail-container">
+    <canvas id="poidsChartDetail"></canvas>
+  </div>
+</div>
+
+<!-- HISTORIQUE COMPLET -->
+<div id="historique-overlay" style="display:none" class="graph-detail-overlay">
+  <div class="graph-detail-header">
+    <button class="btn-close-graph" onclick="closeHistorique()">← Retour</button>
+    <span>Historique complet</span>
+  </div>
+  <div style="padding: 16px;" id="historique-complet-list"></div>
+</div>
     </section>
 
     <!-- MACROS -->
     <section id="view-macros" class="view">
-      <h2>Macros & Nutrition</h2>
-      <p class="wip">Module en construction 🚧</p>
+      <div id="macros-main">
+        <div class="macro-day-indicator" id="macro-day-indicator">
+          <div class="macro-day-left">
+            <span class="macro-day-date" id="macro-day-date"></span>
+            <span class="macro-day-type" id="macro-day-type"></span>
+          </div>
+          <div class="macro-day-btns">
+            <button class="macro-day-btn" onclick="changeDayType('repos')">Repos</button>
+            <button class="macro-day-btn" onclick="changeDayType('push')">Push</button>
+            <button class="macro-day-btn" onclick="changeDayType('pull')">Pull</button>
+            <button class="macro-day-btn" onclick="changeDayType('legs')">Legs</button>
+          </div>
+        </div>
+        <div class="macro-rings-card">
+          <div class="macro-rings-grid">
+            <div class="macro-ring-item">
+              <div class="macro-ring-wrap">
+                <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" class="ring-bg"/><circle cx="40" cy="40" r="34" class="ring-fill ring-kcal" id="ring-kcal"/></svg>
+                <div class="macro-ring-center"><span class="macro-ring-value" id="ring-val-kcal">0</span><span class="macro-ring-unit">kcal</span></div>
+              </div>
+              <span class="macro-ring-label">Calories</span>
+              <span class="macro-ring-target" id="ring-target-kcal"></span>
+            </div>
+            <div class="macro-ring-item">
+              <div class="macro-ring-wrap">
+                <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" class="ring-bg"/><circle cx="40" cy="40" r="34" class="ring-fill ring-prot" id="ring-prot"/></svg>
+                <div class="macro-ring-center"><span class="macro-ring-value" id="ring-val-prot">0</span><span class="macro-ring-unit">g</span></div>
+              </div>
+              <span class="macro-ring-label">Protéines</span>
+              <span class="macro-ring-target" id="ring-target-prot"></span>
+            </div>
+            <div class="macro-ring-item">
+              <div class="macro-ring-wrap">
+                <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" class="ring-bg"/><circle cx="40" cy="40" r="34" class="ring-fill ring-gluc" id="ring-gluc"/></svg>
+                <div class="macro-ring-center"><span class="macro-ring-value" id="ring-val-gluc">0</span><span class="macro-ring-unit">g</span></div>
+              </div>
+              <span class="macro-ring-label">Glucides</span>
+              <span class="macro-ring-target" id="ring-target-gluc"></span>
+            </div>
+            <div class="macro-ring-item">
+              <div class="macro-ring-wrap">
+                <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" class="ring-bg"/><circle cx="40" cy="40" r="34" class="ring-fill ring-lip" id="ring-lip"/></svg>
+                <div class="macro-ring-center"><span class="macro-ring-value" id="ring-val-lip">0</span><span class="macro-ring-unit">g</span></div>
+              </div>
+              <span class="macro-ring-label">Lipides</span>
+              <span class="macro-ring-target" id="ring-target-lip"></span>
+            </div>
+          </div>
+        </div>
+        <div class="macro-add-card">
+          <h3>Ajouter un repas</h3>
+          <div class="macro-add-tabs">
+            <button class="macro-tab active" onclick="switchMacroTab('vocal', this)">🎤 Vocal</button>
+            <button class="macro-tab" onclick="switchMacroTab('manuel', this)">✏️ Manuel</button>
+            <button class="macro-tab" onclick="switchMacroTab('biblio', this)">📚 Bibliothèque</button>
+          </div>
+          <div id="macro-tab-vocal" class="macro-tab-content active">
+            <p class="macro-vocal-hint">Décris ce que tu as mangé, Claude calcule les macros automatiquement.</p>
+            <div class="macro-vocal-area">
+              <button class="btn-mic" id="btn-mic" onclick="toggleVoice()">🎤</button>
+              <p class="macro-vocal-text" id="macro-vocal-text">Appuie pour parler...</p>
+            </div>
+            <div id="macro-vocal-result" style="display:none" class="macro-vocal-result">
+              <div id="macro-vocal-parsed"></div>
+              <div class="macro-vocal-actions">
+                <button class="btn-primary" onclick="confirmVocalMacros()">Ajouter ✓</button>
+                <button class="btn-ghost" onclick="cancelVocalMacros()">Annuler</button>
+              </div>
+            </div>
+            <div id="macro-vocal-loading" style="display:none" class="macro-vocal-loading">
+              <div class="loading-dots"><span></span><span></span><span></span></div>
+              <p>Claude analyse...</p>
+            </div>
+          </div>
+          <div id="macro-tab-manuel" class="macro-tab-content">
+            <div class="form-group"><label>Nom du repas</label><input type="text" id="manual-nom" placeholder="ex: Déjeuner" /></div>
+            <div class="edit-row">
+              <div class="form-group"><label>Calories</label><input type="number" id="manual-kcal" placeholder="kcal" /></div>
+              <div class="form-group"><label>Protéines (g)</label><input type="number" id="manual-prot" placeholder="g" /></div>
+            </div>
+            <div class="edit-row">
+              <div class="form-group"><label>Glucides (g)</label><input type="number" id="manual-gluc" placeholder="g" /></div>
+              <div class="form-group"><label>Lipides (g)</label><input type="number" id="manual-lip" placeholder="g" /></div>
+            </div>
+            <button class="btn-primary" onclick="addManualMacros()">Ajouter</button>
+          </div>
+          <div id="macro-tab-biblio" class="macro-tab-content">
+            <div id="biblio-list"></div>
+            <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="showAddBiblioForm()">+ Ajouter un aliment</button>
+            <div id="biblio-add-form" style="display:none" class="biblio-form">
+              <div class="form-group"><label>Nom</label><input type="text" id="biblio-nom" placeholder="ex: Blanc de poulet 100g" /></div>
+              <div class="edit-row">
+                <div class="form-group"><label>Calories</label><input type="number" id="biblio-kcal" placeholder="kcal" /></div>
+                <div class="form-group"><label>Protéines (g)</label><input type="number" id="biblio-prot" placeholder="g" /></div>
+              </div>
+              <div class="edit-row">
+                <div class="form-group"><label>Glucides (g)</label><input type="number" id="biblio-gluc" placeholder="g" /></div>
+                <div class="form-group"><label>Lipides (g)</label><input type="number" id="biblio-lip" placeholder="g" /></div>
+              </div>
+              <button class="btn-primary" onclick="saveBiblioItem()">Sauvegarder</button>
+              <button class="btn-ghost" style="width:100%;margin-top:8px" onclick="hideAddBiblioForm()">Annuler</button>
+            </div>
+          </div>
+        </div>
+        <div class="macro-meals-card">
+          <h3>Repas du jour</h3>
+          <div id="macro-meals-list"></div>
+        </div>
+        <div class="chart-block">
+          <h3>Évolution semaine</h3>
+          <div class="chart-container"><canvas id="macroChart"></canvas></div>
+        </div>
+      </div>
     </section>
 
     <!-- SÉANCES -->
     <section id="view-seances" class="view">
-
-      <!-- Vue liste des séances -->
       <div id="seances-list-view">
         <div class="seances-grid" id="seances-cards"></div>
         <div class="history-block" style="margin-top:14px">
@@ -136,136 +293,177 @@
           <div id="seances-calendar"></div>
         </div>
       </div>
-
-      <!-- Vue détail d'une séance -->
-<div id="seance-detail-view" style="display:none">
-
-  <!-- Header séance -->
-  <div class="seance-detail-header" id="seance-detail-header"></div>
-
-  <!-- Liste des exercices -->
-  <div id="seance-exercices-list"></div>
-
-  <!-- Formulaire ajout (mode edit uniquement) -->
-  <div id="add-exercice-form" style="display:none" class="setup-card">
-    <h3 style="margin-bottom:12px">Nouvel exercice</h3>
-    <div class="form-group"><label>Nom</label><input type="text" id="new-exo-nom" placeholder="ex: Développé couché" /></div>
-    <div class="form-group"><label>Séries</label><input type="number" id="new-exo-series" value="3" /></div>
-    <div class="form-group"><label>Répétitions</label><input type="number" id="new-exo-reps" value="15" /></div>
-    <div class="form-group"><label>Charge (kg)</label><input type="number" id="new-exo-charge" step="0.25" placeholder="0 = poids de corps" /></div>
-    <div class="form-group"><label>Repos entre séries (sec)</label><input type="number" id="new-exo-repos-series" value="120" /></div>
-    <div class="form-group"><label>Repos après exercice (sec)</label><input type="number" id="new-exo-repos-exo" value="180" /></div>
-    <div class="form-group"><label>Commentaire</label><input type="text" id="new-exo-comment" placeholder="optionnel" /></div>
-    <button class="btn-primary" onclick="saveNewExercice()">Ajouter</button>
-    <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="hideAddExerciceForm()">Annuler</button>
-  </div>
-
-  <!-- Bouton bas -->
-  <div id="seance-bottom-btn" style="margin-top:8px"></div>
-
-</div>
-
+      <div id="seance-detail-view" style="display:none">
+        <div class="seance-detail-header" id="seance-detail-header"></div>
+        <div id="seance-exercices-list"></div>
+        <div id="add-exercice-form" style="display:none" class="setup-card">
+          <h3 style="margin-bottom:12px">Nouvel exercice</h3>
+          <div class="form-group"><label>Nom</label><input type="text" id="new-exo-nom" placeholder="ex: Développé couché" /></div>
+          <div class="form-group"><label>Séries</label><input type="number" id="new-exo-series" value="3" /></div>
+          <div class="form-group"><label>Répétitions</label><input type="number" id="new-exo-reps" value="15" /></div>
+          <div class="form-group"><label>Charge (kg)</label><input type="number" id="new-exo-charge" step="0.25" placeholder="0 = poids de corps" /></div>
+          <div class="form-group"><label>Repos entre séries (sec)</label><input type="number" id="new-exo-repos-series" value="120" /></div>
+          <div class="form-group"><label>Repos après exercice (sec)</label><input type="number" id="new-exo-repos-exo" value="180" /></div>
+          <div class="form-group"><label>Commentaire</label><input type="text" id="new-exo-comment" placeholder="optionnel" /></div>
+          <button class="btn-primary" onclick="saveNewExercice()">Ajouter</button>
+          <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="hideAddExerciceForm()">Annuler</button>
+        </div>
+        <div id="seance-bottom-btn" style="margin-top:8px"></div>
+      </div>
     </section>
-<!-- VUE LANCER SÉANCE -->
-<section id="view-workout" class="view">
 
-  <!-- Écran exercice -->
-  <div id="workout-exercice-screen">
-    <div class="workout-header">
-      <span class="workout-seance-nom" id="workout-seance-nom"></span>
-      <span class="workout-progress" id="workout-progress"></span>
-    </div>
-
-    <div class="workout-exo-card">
-      <p class="workout-exo-numero" id="workout-exo-numero"></p>
-      <h2 class="workout-exo-nom" id="workout-exo-nom"></h2>
-      <div class="workout-exo-stats">
-        <div class="workout-stat">
-          <span class="workout-stat-value" id="workout-series"></span>
-          <span class="workout-stat-label">Séries</span>
+    <!-- WORKOUT -->
+    <section id="view-workout" class="view">
+      <div id="workout-exercice-screen">
+        <div class="workout-header">
+          <span class="workout-seance-nom" id="workout-seance-nom"></span>
+          <span class="workout-progress" id="workout-progress"></span>
         </div>
-        <div class="workout-stat">
-          <span class="workout-stat-value" id="workout-reps"></span>
-          <span class="workout-stat-label">Reps</span>
+        <div class="workout-exo-card">
+          <p class="workout-exo-numero" id="workout-exo-numero"></p>
+          <h2 class="workout-exo-nom" id="workout-exo-nom"></h2>
+          <div class="workout-exo-stats">
+            <div class="workout-stat"><span class="workout-stat-value" id="workout-series"></span><span class="workout-stat-label">Séries</span></div>
+            <div class="workout-stat"><span class="workout-stat-value" id="workout-reps"></span><span class="workout-stat-label">Reps</span></div>
+            <div class="workout-stat"><span class="workout-stat-value" id="workout-charge"></span><span class="workout-stat-label">Charge</span></div>
+          </div>
+          <div class="workout-series-dots" id="workout-series-dots"></div>
         </div>
-        <div class="workout-stat">
-          <span class="workout-stat-value" id="workout-charge"></span>
-          <span class="workout-stat-label">Charge</span>
+        <div class="workout-actions">
+          <button class="btn-rest" id="btn-rest" onclick="startRestSeries()"><span>⏱</span> Repos série</button>
+          <button class="btn-next-exo" onclick="nextExercice()">Exercice suivant →</button>
         </div>
       </div>
-      <div class="workout-series-dots" id="workout-series-dots"></div>
-    </div>
-
-    <div class="workout-actions">
-      <button class="btn-rest" id="btn-rest" onclick="startRestSeries()">
-        <span>⏱</span> Repos série
-      </button>
-      <button class="btn-next-exo" onclick="nextExercice()">
-        Exercice suivant →
-      </button>
-    </div>
-  </div>
-
-  <!-- Écran repos entre exercices -->
-  <div id="workout-rest-screen" style="display:none">
-    <div class="rest-screen">
-      <p class="rest-label">Repos</p>
-      <div class="rest-countdown-wrapper">
-        <div class="rest-progress-ring">
-          <svg viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="54" class="ring-bg"/>
-            <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill"/>
-          </svg>
+      <div id="workout-rest-screen" style="display:none">
+        <div class="rest-screen">
+          <p class="rest-label">Repos</p>
+          <div class="rest-countdown" id="rest-countdown">180</div>
+          <div class="rest-progress-ring">
+            <svg viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="54" class="ring-bg"/>
+              <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill"/>
+            </svg>
+          </div>
+          <div class="rest-next-info">
+            <p class="rest-next-label">Prochain exercice</p>
+            <h3 class="rest-next-nom" id="rest-next-nom"></h3>
+            <div class="rest-next-stats" id="rest-next-stats"></div>
+          </div>
+          <button class="btn-skip-rest" onclick="skipRest()">Passer →</button>
         </div>
-        <div class="rest-countdown" id="rest-countdown">180</div>
       </div>
-      <div class="rest-next-info">
-        <p class="rest-next-label">Prochain exercice</p>
-        <h3 class="rest-next-nom" id="rest-next-nom"></h3>
-        <div class="rest-next-stats" id="rest-next-stats"></div>
-      </div>
-      <button class="btn-skip-rest" onclick="skipRest()">Passer →</button>
-    </div>
-  </div>
-
-  <!-- Écran repos entre séries -->
-  <div id="workout-rest-series-screen" style="display:none">
-    <div class="rest-screen">
-      <p class="rest-label">Repos entre séries</p>
-      <div class="rest-countdown-wrapper">
-        <div class="rest-progress-ring">
-          <svg viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="54" class="ring-bg"/>
-            <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill-series"/>
-          </svg>
+      <div id="workout-rest-series-screen" style="display:none">
+        <div class="rest-screen">
+          <p class="rest-label">Repos entre séries</p>
+          <div class="rest-countdown" id="rest-series-countdown">120</div>
+          <div class="rest-progress-ring">
+            <svg viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="54" class="ring-bg"/>
+              <circle cx="60" cy="60" r="54" class="ring-fill" id="ring-fill-series"/>
+            </svg>
+          </div>
+          <p class="rest-next-label" style="margin-top:24px">Reprends quand tu es prêt</p>
+          <button class="btn-skip-rest" onclick="skipRestSeries()">Reprendre →</button>
         </div>
-        <div class="rest-countdown" id="rest-series-countdown">120</div>
       </div>
-      <p class="rest-next-label" style="margin-top:8px">Reprends quand tu es prêt</p>
-      <button class="btn-skip-rest" onclick="skipRestSeries()">Reprendre →</button>
-    </div>
-  </div>
+      <div id="workout-done-screen" style="display:none">
+        <div class="done-screen">
+          <div class="done-emoji">🏆</div>
+          <h2>Séance terminée !</h2>
+          <p id="done-recap"></p>
+          <button class="btn-primary" style="margin-top:32px" onclick="finishWorkout()">Retour aux séances</button>
+        </div>
+      </div>
+    </section>
 
-  <!-- Écran fin de séance -->
-  <div id="workout-done-screen" style="display:none">
-    <div class="done-screen">
-      <div class="done-emoji">🏆</div>
-      <h2>Séance terminée !</h2>
-      <p id="done-recap"></p>
-      <button class="btn-primary" style="margin-top:32px" onclick="finishWorkout()">Retour aux séances</button>
-    </div>
-  </div>
-
-</section>
   </main>
 
   <nav id="bottom-nav">
-    <button class="nav-btn active" onclick="navigate('dashboard')"><span>🏠</span><label>Accueil</label></button>
-    <button class="nav-btn" onclick="navigate('poids')"><span>⚖️</span><label>Poids</label></button>
-    <button class="nav-btn" onclick="navigate('macros')"><span>🥗</span><label>Macros</label></button>
-    <button class="nav-btn" onclick="navigate('seances')"><span>🏋️</span><label>Séances</label></button>
+    <div class="nav-pill">
+      <button class="nav-btn active" onclick="navigate('poids')" id="nav-poids">
+        <div class="nav-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3C8 3 4 6 4 10c0 2.5 1.5 4.7 3.5 6L8 20h8l.5-4c2-1.3 3.5-3.5 3.5-6 0-4-4-7-8-7z"/>
+            <line x1="8" y1="20" x2="16" y2="20"/>
+            <line x1="9" y1="23" x2="15" y2="23"/>
+          </svg>
+        </div>
+        <label>Poids</label>
+      </button>
+      <button class="nav-btn" onclick="navigate('macros')" id="nav-macros">
+        <div class="nav-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="4" ry="2"/>
+            <path d="M8 5c0 4-4 5-4 9a8 8 0 0016 0c0-4-4-5-4-9"/>
+            <line x1="12" y1="3" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <label>Nutrition</label>
+      </button>
+      <button class="nav-btn" onclick="navigate('seances')" id="nav-seances">
+        <div class="nav-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="6" y1="12" x2="18" y2="12"/>
+            <line x1="3" y1="9" x2="6" y2="12"/>
+            <line x1="3" y1="15" x2="6" y2="12"/>
+            <line x1="18" y1="9" x2="21" y2="12"/>
+            <line x1="18" y1="15" x2="21" y2="12"/>
+          </svg>
+        </div>
+        <label>Séances</label>
+      </button>
+    </div>
   </nav>
+<!-- SETTINGS -->
+<div id="settings-overlay" style="display:none" class="graph-detail-overlay">
+  <div class="graph-detail-header">
+    <button class="btn-close-graph" onclick="closeSettings()">← Retour</button>
+    <span>Réglages</span>
+  </div>
+  <div style="padding:24px;display:flex;flex-direction:column;gap:12px">
+    <div class="settings-section">
+      <p class="settings-section-title">Profil</p>
+      <div class="settings-item">
+        <span>Taille</span>
+        <span id="settings-taille" class="settings-item-value"></span>
+      </div>
+      <div class="settings-item">
+        <span>Poids de départ</span>
+        <span id="settings-poids-depart" class="settings-item-value"></span>
+      </div>
+      <div class="settings-item">
+        <span>Poids cible</span>
+        <span id="settings-poids-cible" class="settings-item-value"></span>
+      </div>
+      <div class="settings-item">
+        <span>Date butoir</span>
+        <span id="settings-date-cible" class="settings-item-value"></span>
+      </div>
+    </div>
+    <div class="settings-section">
+      <p class="settings-section-title">Données</p>
+      <button class="btn-danger" onclick="resetSetup()">Réinitialiser toutes les données</button>
+    </div>
+  </div>
+</div>
 
+<!-- BOTTOMSHEET AJOUT POIDS -->
+<div id="poids-bottomsheet-overlay" onclick="closePoidsBottomsheet()" style="display:none" class="bottomsheet-overlay"></div>
+<div id="poids-bottomsheet" class="bottomsheet">
+  <div class="bottomsheet-handle"></div>
+  <h3 class="bottomsheet-title">Ajouter un poids</h3>
+  <p class="bottomsheet-date" id="bottomsheet-date"></p>
+  <div class="poids-picker-wrap">
+    <div class="poids-picker-highlight"></div>
+    <div class="poids-picker-fade poids-picker-fade--top"></div>
+    <div class="poids-picker-fade poids-picker-fade--bottom"></div>
+    <div class="poids-picker" id="poids-picker">
+      <!-- généré par JS -->
+    </div>
+  </div>
+  <div class="poids-picker-selected" id="poids-picker-selected">-- kg</div>
+  <button class="btn-primary" onclick="confirmPoidsBottomsheet()">Ajouter</button>
+</div>
 </div>
 <script src="assets/js/app.js"></script>
 </body>
