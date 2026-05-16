@@ -1070,32 +1070,85 @@ function renderMealsList(data) {
     return;
   }
   container.innerHTML = data.meals.map((m, i) => `
-    <div class="meal-item">
-      <div>
-        <div class="meal-nom" onclick="editMealNom(${i})" style="cursor:pointer">
-          ${m.nom} ✏️
+    <div class="meal-item" style="flex-direction:column;align-items:stretch;gap:0">
+      <div style="display:flex;justify-content:space-between;align-items:center" onclick="toggleMealDetail(${i})" style="cursor:pointer">
+        <div>
+          <div class="meal-nom">${m.nom} <span style="font-size:11px;color:#555">▾</span></div>
+          <div class="meal-macros">P: ${m.prot}g · G: ${m.gluc}g · L: ${m.lip}g</div>
         </div>
-        <div id="meal-edit-${i}" style="display:none">
-          <input type="text" id="meal-nom-input-${i}" value="${m.nom}" 
-            style="background:#242424;border:1px solid #333;border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;width:100%;margin-top:4px"
-          />
-          <div style="display:flex;gap:6px;margin-top:6px">
-            <button class="btn-primary" style="margin:0;padding:8px;font-size:12px" onclick="saveMealNom(${i})">✓</button>
-            <button class="btn-ghost" style="padding:8px;font-size:12px" onclick="cancelMealNom(${i})">✕</button>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="meal-kcal">${m.kcal} kcal</span>
+          <button class="meal-delete" onclick="event.stopPropagation();deleteMeal(${i})">🗑</button>
+        </div>
+      </div>
+      <div id="meal-detail-${i}" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #242424">
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-style:italic">${m.detail || 'Aucun détail disponible'}</p>
+        <div id="meal-edit-area-${i}" style="display:none">
+          <textarea id="meal-edit-input-${i}"
+            style="width:100%;background:#242424;border:1px solid #333;border-radius:8px;padding:10px;color:var(--text);font-size:14px;resize:none;min-height:60px;font-family:'Plus Jakarta Sans',sans-serif;line-height:1.5"
+          >${m.originalText || m.detail || ''}</textarea>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn-primary" style="margin:0;flex:1" onclick="event.stopPropagation();recalculateMeal(${i})">Recalculer ✨</button>
+            <button class="btn-ghost" onclick="event.stopPropagation();cancelEditMeal(${i})">Annuler</button>
           </div>
         </div>
-        <div class="meal-macros">P: ${m.prot}g · G: ${m.gluc}g · L: ${m.lip}g</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span class="meal-kcal">${m.kcal} kcal</span>
-        <button class="meal-delete" onclick="deleteMeal(${i})">🗑</button>
+        <button class="btn-ghost" id="meal-edit-btn-${i}" style="font-size:12px;padding:6px 12px;width:100%;margin-top:4px" onclick="event.stopPropagation();showEditMeal(${i})">✏️ Modifier ce repas</button>
       </div>
     </div>
   `).join('');
 }
 
-function editMealNom(idx) {
-  document.getElementById('meal-edit-' + idx).style.display = 'block';
+function toggleMealDetail(idx) {
+  const detail = document.getElementById('meal-detail-' + idx);
+  detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+}
+
+function showEditMeal(idx) {
+  document.getElementById('meal-edit-area-' + idx).style.display = 'block';
+  document.getElementById('meal-edit-btn-' + idx).style.display = 'none';
+}
+
+function cancelEditMeal(idx) {
+  document.getElementById('meal-edit-area-' + idx).style.display = 'none';
+  document.getElementById('meal-edit-btn-' + idx).style.display = 'block';
+}
+
+async function recalculateMeal(idx) {
+  const newText = document.getElementById('meal-edit-input-' + idx).value.trim();
+  if (!newText) { alert('Décris le repas.'); return; }
+
+  const items = parseLocalMacros(newText);
+  const totals = sumMacros(items);
+
+  if (!items.length) {
+    alert('Aucun aliment reconnu. Vérifie les quantités et les unités (ex: "3 c.à.s de flocons").');
+    return;
+  }
+
+  const detail = items.map(i => `${i.nom} (${i.displayUnit})`).join(', ');
+  const data = getTodayMacros();
+  data.meals[idx] = {
+    nom: data.meals[idx].nom,
+    kcal: totals.kcal,
+    prot: totals.prot,
+    gluc: totals.gluc,
+    lip: totals.lip,
+    detail
+  };
+  saveTodayMacros(data);
+  
+  // Force le re-render complet
+  const container = document.getElementById('macro-meals-list');
+  container.innerHTML = '';
+  renderMacroRings(data);
+  renderMealsList(data);
+}
+
+function deleteMeal(idx) {
+  const data = getTodayMacros();
+  data.meals.splice(idx, 1);
+  saveTodayMacros(data);
+  initMacros();
 }
 
 function cancelMealNom(idx) {
@@ -1316,7 +1369,8 @@ async function analyzeWithClaude(transcript) {
     prot: totals.prot,
     gluc: totals.gluc,
     lip: totals.lip,
-    detail
+    detail,
+    originalText: transcript
   };
 
   document.getElementById('macro-vocal-result').style.display = 'block';
@@ -1550,63 +1604,91 @@ const FOOD_DB = [
   { names: ['banane', 'bananes'], kcal: 89, prot: 1.1, gluc: 23, lip: 0.3, unitWeight: 120 },
   { names: ['pâtes', 'pasta', 'spaghetti', 'tagliatelle'], kcal: 131, prot: 5, gluc: 25, lip: 1.1 },
   { names: ['concentré tomate', 'double concentré', 'concentré de tomate', 'tomate concentré'], kcal: 78, prot: 4, gluc: 15, lip: 0.5 },
-  { names: ['beurre', 'beurre demi sel'], kcal: 741, prot: 0.6, gluc: 0.6, lip: 82 },
+  { names: ['beurre demi sel', 'beurre demi-sel'], kcal: 741, prot: 0.6, gluc: 0.6, lip: 82 },
 ];
 
 function parseLocalMacros(text) {
   const results = [];
   const textLower = text.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // supprime accents pour matching
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // Patterns de quantité
-  const patterns = [
-    /(\d+(?:[.,]\d+)?)\s*g\b/g,      // 150g
-    /(\d+(?:[.,]\d+)?)\s*ml\b/g,     // 200ml
-    /(\d+(?:[.,]\d+)?)\s*cl\b/g,     // 20cl
-    /(\d+)\s*(?:unité|unite|pièce|piece|portion)s?\b/g, // 2 unités
-  ];
-
-  // Pour chaque aliment de la DB
   FOOD_DB.forEach(food => {
     food.names.forEach(name => {
       const nameNorm = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (!textLower.includes(nameNorm)) return;
+      const nameIdx = textLower.indexOf(nameNorm);
+      if (nameIdx === -1) return;
+      // Vérifie que c'est un mot entier (pas au milieu d'un autre mot)
+      const charBefore = nameIdx > 0 ? textLower[nameIdx - 1] : ' ';
+      const charAfter = textLower[nameIdx + nameNorm.length] || ' ';
+      if (/[a-z]/.test(charBefore)) return;
 
-      // Cherche une quantité avant ou après le nom
       const idx = textLower.indexOf(nameNorm);
-      const surroundingText = textLower.substring(Math.max(0, idx - 30), idx + nameNorm.length + 30);
+      const surroundingText = textLower.substring(Math.max(0, idx - 50), idx + nameNorm.length + 50);
 
       let quantity = null;
       let unit = 'g';
+      let displayUnit = '';
 
-      // Cherche quantité en grammes
+      // Cuillères à soupe
+      const casMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*(?:cuilli[eèé]re?s?\s*(?:a|à)\s*soupe?|c\.?\s*a\.?\s*s\.?|cas)/);
+      // Cuillères à café
+      const cacMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*(?:cuilli[eèé]re?s?\s*(?:a|à)\s*cafe?|c\.?\s*a\.?\s*c\.?|cac)/);
+      const verreMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*verre?s?/);
+      // Bol
+      const bolMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*bols?/);
+      // Grammes
       const gMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*g\b/);
+      // Millilitres
       const mlMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*ml\b/);
+      // Centilitres
       const clMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*cl\b/);
-      const unitMatch = surroundingText.match(/(\d+)\s*(?:unité|unite|pièce|piece|x|\*)?/);
+      // Unités simples (1 banane, 2 oeufs)
+      const unitMatch = food.unitWeight && surroundingText.match(/(\d+)\s*(?:unite?s?|piece?s?|x|\*)?(?:\s|$)/);
+      // Nombre seul avant le nom
+      const numberBeforeMatch = surroundingText.match(/^[^0-9]*?(\d+(?:[.,]\d+)?)\s*(?:g|ml|cl|cas|cac|verre|bol)?\s*$/);
 
-      if (gMatch) {
+      if (casMatch) {
+        quantity = parseFloat(casMatch[1].replace(',', '.')) * 15;
+        displayUnit = casMatch[1] + ' c.à.s';
+        unit = 'g';
+      } else if (cacMatch) {
+        quantity = parseFloat(cacMatch[1].replace(',', '.')) * 5;
+        displayUnit = cacMatch[1] + ' c.à.c';
+        unit = 'g';
+      } else if (verreMatch) {
+        quantity = parseFloat(verreMatch[1].replace(',', '.')) * 200;
+        displayUnit = verreMatch[1] + ' verre(s)';
+        unit = 'ml';
+      } else if (bolMatch) {
+        quantity = parseFloat(bolMatch[1].replace(',', '.')) * 250;
+        displayUnit = bolMatch[1] + ' bol(s)';
+        unit = 'ml';
+      } else if (gMatch) {
         quantity = parseFloat(gMatch[1].replace(',', '.'));
+        displayUnit = quantity + 'g';
         unit = 'g';
       } else if (mlMatch) {
         quantity = parseFloat(mlMatch[1].replace(',', '.'));
+        displayUnit = quantity + 'ml';
         unit = 'ml';
       } else if (clMatch) {
         quantity = parseFloat(clMatch[1].replace(',', '.')) * 10;
+        displayUnit = clMatch[1] + 'cl';
         unit = 'ml';
       } else if (food.unitWeight && unitMatch) {
         quantity = parseInt(unitMatch[1]) * food.unitWeight;
+        displayUnit = unitMatch[1] + ' unité(s)';
         unit = 'g';
       } else {
-        // Quantité par défaut selon l'aliment
-        quantity = food.unitWeight || 100;
-        unit = 'g';
+        // Pas de quantité trouvée — on skip
+        return;
       }
 
       const ratio = quantity / 100;
       results.push({
-        nom: name,
+        nom: food.names[0],
         quantite: quantity,
+        displayUnit: displayUnit || (quantity + unit),
         unit,
         kcal: Math.round(food.kcal * ratio),
         prot: Math.round(food.prot * ratio * 10) / 10,
@@ -1616,7 +1698,7 @@ function parseLocalMacros(text) {
     });
   });
 
-  // Déduplique (garde le premier match par aliment)
+  // Déduplique
   const seen = new Set();
   return results.filter(r => {
     if (seen.has(r.nom)) return false;
@@ -1663,7 +1745,8 @@ async function analyzeTextMacros() {
     prot: totals.prot,
     gluc: totals.gluc,
     lip: totals.lip,
-    detail
+    detail,
+    originalText: transcript
   };
 
   document.getElementById('manuel-result').style.display = 'block';
@@ -1694,4 +1777,11 @@ function cancelManuelMacros() {
   pendingManuelMacros = null;
   document.getElementById('manuel-result').style.display = 'none';
   document.getElementById('btn-analyse-texte').style.display = 'block';
+}
+
+function deleteMeal(idx) {
+  const data = getTodayMacros();
+  data.meals.splice(idx, 1);
+  saveTodayMacros(data);
+  initMacros();
 }
