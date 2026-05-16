@@ -244,17 +244,29 @@
             </div>
           </div>
           <div id="macro-tab-manuel" class="macro-tab-content">
-            <div class="form-group"><label>Nom du repas</label><input type="text" id="manual-nom" placeholder="ex: Déjeuner" /></div>
-            <div class="edit-row">
-              <div class="form-group"><label>Calories</label><input type="number" id="manual-kcal" placeholder="kcal" /></div>
-              <div class="form-group"><label>Protéines (g)</label><input type="number" id="manual-prot" placeholder="g" /></div>
-            </div>
-            <div class="edit-row">
-              <div class="form-group"><label>Glucides (g)</label><input type="number" id="manual-gluc" placeholder="g" /></div>
-              <div class="form-group"><label>Lipides (g)</label><input type="number" id="manual-lip" placeholder="g" /></div>
-            </div>
-            <button class="btn-primary" onclick="addManualMacros()">Ajouter</button>
-          </div>
+  <p class="macro-vocal-hint">Décris ton repas en texte, Claude calcule les macros automatiquement.</p>
+  <div class="macro-vocal-area" style="align-items:flex-start">
+    <textarea 
+      id="manuel-transcript" 
+      placeholder="ex: J'ai mangé 150g de poulet grillé avec 100g de riz basmati et une cuillère d'huile d'olive..."
+      style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;resize:none;min-height:80px;line-height:1.5"
+    ></textarea>
+  </div>
+  <div id="manuel-loading" style="display:none" class="macro-vocal-loading">
+    <div class="loading-dots"><span></span><span></span><span></span></div>
+    <p>Claude analyse...</p>
+  </div>
+  <div id="manuel-result" style="display:none" class="macro-vocal-result">
+    <div id="manuel-parsed"></div>
+    <div class="macro-vocal-actions">
+      <button class="btn-primary" onclick="confirmManuelMacros()">Ajouter ✓</button>
+      <button class="btn-ghost" onclick="cancelManuelMacros()">Annuler</button>
+    </div>
+  </div>
+  <button class="btn-primary" id="btn-analyse-texte" onclick="analyzeTextMacros()" style="margin-top:8px">
+  Analyser ✨
+</button>
+</div>
           <div id="macro-tab-biblio" class="macro-tab-content">
             <div id="biblio-list"></div>
             <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="showAddBiblioForm()">+ Ajouter un aliment</button>

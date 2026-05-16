@@ -1000,7 +1000,31 @@ const DAY_TYPE_LABELS = {
 // Storage
 function getMacrosLog() { return JSON.parse(localStorage.getItem('macrosLog') || '{}'); }
 function saveMacrosLog(l) { localStorage.setItem('macrosLog', JSON.stringify(l)); }
-function getBiblio() { return JSON.parse(localStorage.getItem('macroBiblio') || '[]'); }
+const DEFAULT_BIBLIO = [
+  { nom: 'Flocons d\'avoine (100g)', kcal: 370, prot: 13, gluc: 60, lip: 7 },
+  { nom: 'Skyr (100g)', kcal: 63, prot: 10, gluc: 4, lip: 0.2 },
+  { nom: 'Beurre de cacahuète (100g)', kcal: 597, prot: 25, gluc: 20, lip: 50 },
+  { nom: 'Lait demi-écrémé (100ml)', kcal: 46, prot: 3.2, gluc: 4.8, lip: 1.6 },
+  { nom: 'Riz blanc cuit (100g)', kcal: 130, prot: 2.7, gluc: 28, lip: 0.3 },
+  { nom: 'Poulet grillé (100g)', kcal: 165, prot: 31, gluc: 0, lip: 3.6 },
+  { nom: 'Steak haché 5% (100g)', kcal: 250, prot: 20, gluc: 0, lip: 18 },
+  { nom: 'Oeuf entier (1 unité)', kcal: 86, prot: 7.8, gluc: 0.4, lip: 6 },
+  { nom: 'Sauce BBQ (100g)', kcal: 120, prot: 1, gluc: 28, lip: 0.5 },
+  { nom: 'Filet de maquereau (100g)', kcal: 205, prot: 19, gluc: 0, lip: 14 },
+  { nom: 'Banane (1 unité)', kcal: 107, prot: 1.3, gluc: 27, lip: 0.4 },
+  { nom: 'Pâtes cuites (100g)', kcal: 131, prot: 5, gluc: 25, lip: 1.1 },
+  { nom: 'Concentré de tomate (100g)', kcal: 78, prot: 4, gluc: 15, lip: 0.5 },
+  { nom: 'Beurre demi-sel (100g)', kcal: 741, prot: 0.6, gluc: 0.6, lip: 82 },
+];
+
+function getBiblio() {
+  const stored = localStorage.getItem('macroBiblio');
+  if (!stored) {
+    saveBiblio(DEFAULT_BIBLIO);
+    return DEFAULT_BIBLIO;
+  }
+  return JSON.parse(stored);
+}
 function saveBiblio(b) { localStorage.setItem('macroBiblio', JSON.stringify(b)); }
 
 function getTodayMacros() {
@@ -1022,12 +1046,10 @@ let macroChart = null;
 function initMacros() {
   const data = getTodayMacros();
 
-  // Date et type du jour
   const dateStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   document.getElementById('macro-day-date').textContent = dateStr;
   document.getElementById('macro-day-type').textContent = DAY_TYPE_LABELS[data.type];
 
-  // Boutons type actifs
   document.querySelectorAll('.macro-day-btn').forEach(b => {
     b.className = 'macro-day-btn';
     if (b.getAttribute('onclick').includes(data.type)) {
@@ -1037,8 +1059,56 @@ function initMacros() {
 
   renderMacroRings(data);
   renderMealsList(data);
-  renderMacroChart();
   renderBiblio();
+  renderMacroChart();
+}
+
+function renderMealsList(data) {
+  const container = document.getElementById('macro-meals-list');
+  if (!data.meals.length) {
+    container.innerHTML = '<p style="color:#666;font-size:14px">Aucun repas enregistré aujourd\'hui.</p>';
+    return;
+  }
+  container.innerHTML = data.meals.map((m, i) => `
+    <div class="meal-item">
+      <div>
+        <div class="meal-nom" onclick="editMealNom(${i})" style="cursor:pointer">
+          ${m.nom} ✏️
+        </div>
+        <div id="meal-edit-${i}" style="display:none">
+          <input type="text" id="meal-nom-input-${i}" value="${m.nom}" 
+            style="background:#242424;border:1px solid #333;border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;width:100%;margin-top:4px"
+          />
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="btn-primary" style="margin:0;padding:8px;font-size:12px" onclick="saveMealNom(${i})">✓</button>
+            <button class="btn-ghost" style="padding:8px;font-size:12px" onclick="cancelMealNom(${i})">✕</button>
+          </div>
+        </div>
+        <div class="meal-macros">P: ${m.prot}g · G: ${m.gluc}g · L: ${m.lip}g</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="meal-kcal">${m.kcal} kcal</span>
+        <button class="meal-delete" onclick="deleteMeal(${i})">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function editMealNom(idx) {
+  document.getElementById('meal-edit-' + idx).style.display = 'block';
+}
+
+function cancelMealNom(idx) {
+  document.getElementById('meal-edit-' + idx).style.display = 'none';
+}
+
+function saveMealNom(idx) {
+  const newNom = document.getElementById('meal-nom-input-' + idx).value.trim();
+  if (!newNom) return;
+  const data = getTodayMacros();
+  data.meals[idx].nom = newNom;
+  saveTodayMacros(data);
+  initMacros();
 }
 
 // Changer type de jour
@@ -1080,40 +1150,13 @@ function calcTotals(meals) {
   }), { kcal: 0, prot: 0, gluc: 0, lip: 0 });
 }
 
-// Meals list
-function renderMealsList(data) {
-  const container = document.getElementById('macro-meals-list');
-  if (!data.meals.length) {
-    container.innerHTML = '<p style="color:#666;font-size:14px">Aucun repas enregistré aujourd\'hui.</p>';
-    return;
-  }
-  container.innerHTML = data.meals.map((m, i) => `
-    <div class="meal-item">
-      <div>
-        <div class="meal-nom">${m.nom}</div>
-        <div class="meal-macros">P: ${m.prot}g · G: ${m.gluc}g · L: ${m.lip}g</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span class="meal-kcal">${m.kcal} kcal</span>
-        <button class="meal-delete" onclick="deleteMeal(${i})">🗑</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function deleteMeal(idx) {
-  const data = getTodayMacros();
-  data.meals.splice(idx, 1);
-  saveTodayMacros(data);
-  initMacros();
-}
-
 // Tabs
 function switchMacroTab(tab, btn) {
   document.querySelectorAll('.macro-tab').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.macro-tab-content').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('macro-tab-' + tab).classList.add('active');
+  if (tab === 'biblio') renderBiblio();
 }
 
 // ===== SAISIE MANUELLE =====
@@ -1254,45 +1297,38 @@ async function analyzeWithClaude(transcript) {
   document.getElementById('macro-vocal-loading').style.display = 'flex';
   document.getElementById('macro-vocal-result').style.display = 'none';
 
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: `Analyse ce repas et retourne UNIQUEMENT un JSON valide sans markdown ni backticks :
-{"nom":"nom du repas","kcal":0,"prot":0,"gluc":0,"lip":0,"detail":"description courte des aliments"}
+  await new Promise(r => setTimeout(r, 600));
 
-Repas décrit : "${transcript}"
+  const items = parseLocalMacros(transcript);
+  const totals = sumMacros(items);
 
-Utilise des valeurs nutritionnelles moyennes françaises. Sois précis.`
-        }]
-      })
-    });
+  document.getElementById('macro-vocal-loading').style.display = 'none';
 
-    const data = await response.json();
-    const text = data.content[0].text.trim();
-    const parsed = JSON.parse(text);
-    pendingVocalMacros = parsed;
-
-    document.getElementById('macro-vocal-loading').style.display = 'none';
-    document.getElementById('macro-vocal-result').style.display = 'block';
-    document.getElementById('macro-vocal-parsed').innerHTML = `
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">${parsed.detail}</p>
-      <div class="workout-exo-stats" style="margin:0">
-        <div class="workout-stat"><span class="workout-stat-value">${parsed.kcal}</span><span class="workout-stat-label">kcal</span></div>
-        <div class="workout-stat"><span class="workout-stat-value">${parsed.prot}g</span><span class="workout-stat-label">Protéines</span></div>
-        <div class="workout-stat"><span class="workout-stat-value">${parsed.gluc}g</span><span class="workout-stat-label">Glucides</span></div>
-        <div class="workout-stat"><span class="workout-stat-value">${parsed.lip}g</span><span class="workout-stat-label">Lipides</span></div>
-      </div>
-    `;
-  } catch (e) {
-    document.getElementById('macro-vocal-loading').style.display = 'none';
-    document.getElementById('macro-vocal-text').textContent = 'Erreur d\'analyse. Réessaie ou utilise la saisie manuelle.';
+  if (!items.length) {
+    document.getElementById('macro-vocal-text').textContent = 'Aucun aliment reconnu. Réessaie.';
+    return;
   }
+
+  const detail = items.map(i => `${i.nom} (${i.quantite}${i.unit})`).join(', ');
+  pendingVocalMacros = {
+    nom: 'Repas vocal',
+    kcal: totals.kcal,
+    prot: totals.prot,
+    gluc: totals.gluc,
+    lip: totals.lip,
+    detail
+  };
+
+  document.getElementById('macro-vocal-result').style.display = 'block';
+  document.getElementById('macro-vocal-parsed').innerHTML = `
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">${detail}</p>
+    <div class="workout-exo-stats" style="margin:0">
+      <div class="workout-stat"><span class="workout-stat-value">${totals.kcal}</span><span class="workout-stat-label">kcal</span></div>
+      <div class="workout-stat"><span class="workout-stat-value">${totals.prot}g</span><span class="workout-stat-label">Protéines</span></div>
+      <div class="workout-stat"><span class="workout-stat-value">${totals.gluc}g</span><span class="workout-stat-label">Glucides</span></div>
+      <div class="workout-stat"><span class="workout-stat-value">${totals.lip}g</span><span class="workout-stat-label">Lipides</span></div>
+    </div>
+  `;
 }
 
 function confirmVocalMacros() {
@@ -1494,4 +1530,168 @@ function renderFAB() {
   fab.innerHTML = '+';
   fab.onclick = openPoidsBottomsheet;
   document.getElementById('app').appendChild(fab);
+}
+
+// ===== ANALYSE TEXTE MACROS =====
+let pendingManuelMacros = null;
+
+// ===== BASE NUTRITIONNELLE LOCALE =====
+const FOOD_DB = [
+  { names: ['flocons avoine', 'avoine', 'flocons'], kcal: 370, prot: 13, gluc: 60, lip: 7 },
+  { names: ['skyr', 'sky'], kcal: 63, prot: 10, gluc: 4, lip: 0.2 },
+  { names: ['beurre cacahuète', 'beurre de cacahuète', 'cacahuète', 'peanut butter'], kcal: 597, prot: 25, gluc: 20, lip: 50 },
+  { names: ['lait demi écrémé', 'lait demi', 'lait'], kcal: 46, prot: 3.2, gluc: 4.8, lip: 1.6 },
+  { names: ['riz blanc', 'riz'], kcal: 130, prot: 2.7, gluc: 28, lip: 0.3 },
+  { names: ['poulet', 'blanc poulet', 'filet poulet', 'escalope poulet'], kcal: 165, prot: 31, gluc: 0, lip: 3.6 },
+  { names: ['steak haché', 'steak', 'haché', 'boeuf haché'], kcal: 250, prot: 20, gluc: 0, lip: 18 },
+  { names: ['oeuf', 'oeufs', 'œuf', 'œufs'], kcal: 143, prot: 13, gluc: 0.7, lip: 10, unitWeight: 60 },
+  { names: ['sauce bbq', 'bbq'], kcal: 120, prot: 1, gluc: 28, lip: 0.5 },
+  { names: ['maquereau', 'filet maquereau'], kcal: 205, prot: 19, gluc: 0, lip: 14 },
+  { names: ['banane', 'bananes'], kcal: 89, prot: 1.1, gluc: 23, lip: 0.3, unitWeight: 120 },
+  { names: ['pâtes', 'pasta', 'spaghetti', 'tagliatelle'], kcal: 131, prot: 5, gluc: 25, lip: 1.1 },
+  { names: ['concentré tomate', 'double concentré', 'concentré de tomate', 'tomate concentré'], kcal: 78, prot: 4, gluc: 15, lip: 0.5 },
+  { names: ['beurre', 'beurre demi sel'], kcal: 741, prot: 0.6, gluc: 0.6, lip: 82 },
+];
+
+function parseLocalMacros(text) {
+  const results = [];
+  const textLower = text.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // supprime accents pour matching
+
+  // Patterns de quantité
+  const patterns = [
+    /(\d+(?:[.,]\d+)?)\s*g\b/g,      // 150g
+    /(\d+(?:[.,]\d+)?)\s*ml\b/g,     // 200ml
+    /(\d+(?:[.,]\d+)?)\s*cl\b/g,     // 20cl
+    /(\d+)\s*(?:unité|unite|pièce|piece|portion)s?\b/g, // 2 unités
+  ];
+
+  // Pour chaque aliment de la DB
+  FOOD_DB.forEach(food => {
+    food.names.forEach(name => {
+      const nameNorm = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (!textLower.includes(nameNorm)) return;
+
+      // Cherche une quantité avant ou après le nom
+      const idx = textLower.indexOf(nameNorm);
+      const surroundingText = textLower.substring(Math.max(0, idx - 30), idx + nameNorm.length + 30);
+
+      let quantity = null;
+      let unit = 'g';
+
+      // Cherche quantité en grammes
+      const gMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*g\b/);
+      const mlMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*ml\b/);
+      const clMatch = surroundingText.match(/(\d+(?:[.,]\d+)?)\s*cl\b/);
+      const unitMatch = surroundingText.match(/(\d+)\s*(?:unité|unite|pièce|piece|x|\*)?/);
+
+      if (gMatch) {
+        quantity = parseFloat(gMatch[1].replace(',', '.'));
+        unit = 'g';
+      } else if (mlMatch) {
+        quantity = parseFloat(mlMatch[1].replace(',', '.'));
+        unit = 'ml';
+      } else if (clMatch) {
+        quantity = parseFloat(clMatch[1].replace(',', '.')) * 10;
+        unit = 'ml';
+      } else if (food.unitWeight && unitMatch) {
+        quantity = parseInt(unitMatch[1]) * food.unitWeight;
+        unit = 'g';
+      } else {
+        // Quantité par défaut selon l'aliment
+        quantity = food.unitWeight || 100;
+        unit = 'g';
+      }
+
+      const ratio = quantity / 100;
+      results.push({
+        nom: name,
+        quantite: quantity,
+        unit,
+        kcal: Math.round(food.kcal * ratio),
+        prot: Math.round(food.prot * ratio * 10) / 10,
+        gluc: Math.round(food.gluc * ratio * 10) / 10,
+        lip: Math.round(food.lip * ratio * 10) / 10,
+      });
+    });
+  });
+
+  // Déduplique (garde le premier match par aliment)
+  const seen = new Set();
+  return results.filter(r => {
+    if (seen.has(r.nom)) return false;
+    seen.add(r.nom);
+    return true;
+  });
+}
+
+function sumMacros(items) {
+  return items.reduce((acc, item) => ({
+    kcal: acc.kcal + item.kcal,
+    prot: Math.round((acc.prot + item.prot) * 10) / 10,
+    gluc: Math.round((acc.gluc + item.gluc) * 10) / 10,
+    lip: Math.round((acc.lip + item.lip) * 10) / 10,
+  }), { kcal: 0, prot: 0, gluc: 0, lip: 0 });
+}
+
+async function analyzeTextMacros() {
+  const transcript = document.getElementById('manuel-transcript').value.trim();
+  if (!transcript) { alert('Décris ton repas d\'abord.'); return; }
+
+  document.getElementById('btn-analyse-texte').style.display = 'none';
+  document.getElementById('manuel-loading').style.display = 'flex';
+  document.getElementById('manuel-result').style.display = 'none';
+
+  // Analyse locale
+  await new Promise(r => setTimeout(r, 600)); // petit délai pour l'effet
+
+  const items = parseLocalMacros(transcript);
+  const totals = sumMacros(items);
+
+  document.getElementById('manuel-loading').style.display = 'none';
+
+  if (!items.length) {
+    document.getElementById('btn-analyse-texte').style.display = 'block';
+    alert('Aucun aliment reconnu. Essaie avec des termes comme "150g poulet", "100g riz"...');
+    return;
+  }
+
+  const detail = items.map(i => `${i.nom} (${i.quantite}${i.unit})`).join(', ');
+  pendingManuelMacros = {
+    nom: 'Repas analysé',
+    kcal: totals.kcal,
+    prot: totals.prot,
+    gluc: totals.gluc,
+    lip: totals.lip,
+    detail
+  };
+
+  document.getElementById('manuel-result').style.display = 'block';
+  document.getElementById('manuel-parsed').innerHTML = `
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">${detail}</p>
+    <div class="workout-exo-stats" style="margin:0">
+      <div class="workout-stat"><span class="workout-stat-value">${totals.kcal}</span><span class="workout-stat-label">kcal</span></div>
+      <div class="workout-stat"><span class="workout-stat-value">${totals.prot}g</span><span class="workout-stat-label">Protéines</span></div>
+      <div class="workout-stat"><span class="workout-stat-value">${totals.gluc}g</span><span class="workout-stat-label">Glucides</span></div>
+      <div class="workout-stat"><span class="workout-stat-value">${totals.lip}g</span><span class="workout-stat-label">Lipides</span></div>
+    </div>
+  `;
+}
+
+function confirmManuelMacros() {
+  if (!pendingManuelMacros) return;
+  const data = getTodayMacros();
+  data.meals.push(pendingManuelMacros);
+  saveTodayMacros(data);
+  pendingManuelMacros = null;
+  document.getElementById('manuel-result').style.display = 'none';
+  document.getElementById('manuel-transcript').value = '';
+  document.getElementById('btn-analyse-texte').style.display = 'block';
+  initMacros();
+}
+
+function cancelManuelMacros() {
+  pendingManuelMacros = null;
+  document.getElementById('manuel-result').style.display = 'none';
+  document.getElementById('btn-analyse-texte').style.display = 'block';
 }
