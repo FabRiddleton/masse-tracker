@@ -32,16 +32,16 @@ body {
 #app {
   max-width: 430px;
   margin: 0 auto;
-  min-height: 100vh;
+  min-height: 932px;
+  position: relative;
 }
 
 header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   padding: 56px 20px 16px;
-  position: sticky;
-  top: 0;
-  background: var(--bg);
-  z-index: 10;
-  border-bottom: 1px solid #1e1e1e;
+  background: transparent;
 }
 
 header h1 {
@@ -1523,7 +1523,7 @@ main {
   font-size: 13px;
 }
 
-.badge-new-up { background: rgba(46,213,115,0.15); }
+.badge-new-up { background: rgba(232,255,71,0.15); color: var(--accent); }
 .badge-new-down { background: rgba(255,71,87,0.15); }
 .badge-new-same { background: #242424; }
 
@@ -1717,6 +1717,7 @@ header {
   box-shadow: 0 4px 20px rgba(232,255,71,0.35);
   transition: transform 0.15s, box-shadow 0.15s;
   z-index: 50;
+  right: calc(50% - 215px + 20px);
 }
 
 .fab-add:active {

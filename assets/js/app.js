@@ -118,7 +118,8 @@ function showSeancesList() {
   document.getElementById('seances-list-view').style.display = 'block';
   document.getElementById('seance-detail-view').style.display = 'none';
   document.getElementById('back-btn').style.display = 'none';
-  document.getElementById('page-title').textContent = 'Séances & Exercices';
+  const titleEl = document.getElementById('page-title');
+  if (titleEl) titleEl.textContent = 'Séances & Exercices';
   renderSeancesCards();
   renderCalendar();
 }
@@ -746,11 +747,13 @@ function closeHistorique() {
 
 // ===== GRAPHIQUE DÉTAILLÉ =====
 let detailChart = null;
-let detailFilter = 'ALL';
+let detailFilter = '1S';
 
 function openGraphDetail() {
   document.getElementById('graph-detail-overlay').style.display = 'flex';
   document.getElementById('graph-detail-overlay').style.flexDirection = 'column';
+  document.querySelectorAll('.graph-detail-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.graph-detail-filters .filter-btn').classList.add('active');
   renderDetailChart(detailFilter);
   initDetailTouch();
 }
@@ -967,20 +970,7 @@ function linearRegression(entries) {
 }
 
 function renderHistory() {
-  const entries = getEntries();
-  const container = document.getElementById('poids-list');
-  if (entries.length === 0) { container.innerHTML = '<p style="color:#666;font-size:14px;">Aucune entrée pour le moment.</p>'; return; }
-  const reversed = [...entries].reverse();
-  container.innerHTML = reversed.map((e, i) => {
-    const prev = reversed[i + 1];
-    let badge = '<span class="history-badge badge-same">→</span>';
-    if (prev) {
-      const diff = e.poids - prev.poids;
-      if (diff > 0.05) badge = `<span class="history-badge badge-up">+${diff.toFixed(1)} kg</span>`;
-      else if (diff < -0.05) badge = `<span class="history-badge badge-down">${diff.toFixed(1)} kg</span>`;
-    }
-    return `<div class="history-item"><span class="history-date">${formatDate(e.date)}</span><span class="history-poids">${e.poids} kg</span>${badge}</div>`;
-  }).join('');
+  renderHistoriquePreview(getEntries());
 }
 
 // ===== INIT =====
